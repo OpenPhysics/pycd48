@@ -369,11 +369,11 @@ class TestCD48Exceptions(unittest.TestCase):
 
     def test_exception_messages(self) -> None:
         """Test exception message handling."""
-        error = CD48ParseError("test message")
-        self.assertEqual(str(error), "test message")
+        parse_error = CD48ParseError("test message")
+        self.assertEqual(str(parse_error), "test message")
 
-        error = CD48DeviceNotFoundError("device not found")
-        self.assertEqual(str(error), "device not found")
+        not_found_error = CD48DeviceNotFoundError("device not found")
+        self.assertEqual(str(not_found_error), "device not found")
 
 
 if __name__ == "__main__":

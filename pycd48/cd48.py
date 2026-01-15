@@ -5,7 +5,7 @@ This module provides a Python interface for the Red Dog Physics CD48
 Coincidence Counter using PySerial for USB communication.
 """
 
-from typing import Optional, List, overload, Literal, TypedDict, Type
+from typing import Optional, Union, List, overload, Literal, TypedDict, Type
 from types import TracebackType
 import logging
 import serial
@@ -108,7 +108,7 @@ class CD48:
     @overload
     def get_counts(self, human_readable: Literal[False]) -> CountsDict: ...
 
-    def get_counts(self, human_readable: bool = True) -> str | CountsDict:
+    def get_counts(self, human_readable: bool = True) -> Union[str, CountsDict]:
         """
         Get current counts from all channels
 

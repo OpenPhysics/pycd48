@@ -94,7 +94,7 @@ def main() -> None:
             time.sleep(interval)
 
             data = cd48.get_counts(human_readable=False)
-            counts = data['counts']
+            counts = data["counts"]
 
             # Store data
             elapsed = time.time() - start_time
@@ -109,13 +109,15 @@ def main() -> None:
             coinc_BC.append(counts[7] / interval)
 
             # Display current measurement
-            print(f"{elapsed:>6.0f}s     "
-                  f"{singles_A[-1]:>7.1f} "
-                  f"{singles_B[-1]:>7.1f} "
-                  f"{singles_C[-1]:>7.1f} "
-                  f"{singles_D[-1]:>7.1f} "
-                  f"{coinc_AB[-1]:>7.1f} "
-                  f"{coinc_ABC[-1]:>7.1f}")
+            print(
+                f"{elapsed:>6.0f}s     "
+                f"{singles_A[-1]:>7.1f} "
+                f"{singles_B[-1]:>7.1f} "
+                f"{singles_C[-1]:>7.1f} "
+                f"{singles_D[-1]:>7.1f} "
+                f"{coinc_AB[-1]:>7.1f} "
+                f"{coinc_ABC[-1]:>7.1f}"
+            )
 
         # Convert to numpy arrays for analysis
         timestamps = np.array(timestamps)
@@ -186,52 +188,59 @@ def main() -> None:
 
         # Plot 1: Singles rates over time
         ax1 = axes[0, 0]
-        ax1.plot(timestamps / 60, singles_A, 'o-', label='Detector A (top)', alpha=0.7)
-        ax1.plot(timestamps / 60, singles_B, 's-', label='Detector B (bottom)', alpha=0.7)
-        ax1.plot(timestamps / 60, singles_C, '^-', label='Detector C (middle)', alpha=0.7)
-        ax1.plot(timestamps / 60, singles_D, 'd-', label='Detector D (background)', alpha=0.7)
-        ax1.set_xlabel('Time (minutes)')
-        ax1.set_ylabel('Count Rate (Hz)')
-        ax1.set_title('Singles Rates Over Time')
+        ax1.plot(timestamps / 60, singles_A, "o-", label="Detector A (top)", alpha=0.7)
+        ax1.plot(timestamps / 60, singles_B, "s-", label="Detector B (bottom)", alpha=0.7)
+        ax1.plot(timestamps / 60, singles_C, "^-", label="Detector C (middle)", alpha=0.7)
+        ax1.plot(timestamps / 60, singles_D, "d-", label="Detector D (background)", alpha=0.7)
+        ax1.set_xlabel("Time (minutes)")
+        ax1.set_ylabel("Count Rate (Hz)")
+        ax1.set_title("Singles Rates Over Time")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
         # Plot 2: Coincidence rates over time
         ax2 = axes[0, 1]
-        ax2.plot(timestamps / 60, coinc_AB, 'o-', label='A-B (2-fold)', alpha=0.7)
-        ax2.plot(timestamps / 60, coinc_ABC, 's-', label='A-B-C (3-fold)', alpha=0.7)
-        ax2.axhline(y=coinc_AB.mean(), color='blue', linestyle='--', alpha=0.5, label='A-B mean')
-        ax2.axhline(y=coinc_ABC.mean(), color='orange', linestyle='--', alpha=0.5, label='A-B-C mean')
-        ax2.set_xlabel('Time (minutes)')
-        ax2.set_ylabel('Coincidence Rate (Hz)')
-        ax2.set_title('Coincidence Rates Over Time')
+        ax2.plot(timestamps / 60, coinc_AB, "o-", label="A-B (2-fold)", alpha=0.7)
+        ax2.plot(timestamps / 60, coinc_ABC, "s-", label="A-B-C (3-fold)", alpha=0.7)
+        ax2.axhline(y=coinc_AB.mean(), color="blue", linestyle="--", alpha=0.5, label="A-B mean")
+        ax2.axhline(
+            y=coinc_ABC.mean(), color="orange", linestyle="--", alpha=0.5, label="A-B-C mean"
+        )
+        ax2.set_xlabel("Time (minutes)")
+        ax2.set_ylabel("Coincidence Rate (Hz)")
+        ax2.set_title("Coincidence Rates Over Time")
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
         # Plot 3: Distribution of coincidence rates
         ax3 = axes[1, 0]
-        ax3.hist(coinc_AB, bins=20, alpha=0.6, label='A-B (2-fold)', edgecolor='black')
-        ax3.hist(coinc_ABC, bins=20, alpha=0.6, label='A-B-C (3-fold)', edgecolor='black')
-        ax3.set_xlabel('Coincidence Rate (Hz)')
-        ax3.set_ylabel('Frequency')
-        ax3.set_title('Distribution of Coincidence Rates')
+        ax3.hist(coinc_AB, bins=20, alpha=0.6, label="A-B (2-fold)", edgecolor="black")
+        ax3.hist(coinc_ABC, bins=20, alpha=0.6, label="A-B-C (3-fold)", edgecolor="black")
+        ax3.set_xlabel("Coincidence Rate (Hz)")
+        ax3.set_ylabel("Frequency")
+        ax3.set_title("Distribution of Coincidence Rates")
         ax3.legend()
         ax3.grid(True, alpha=0.3)
 
         # Plot 4: Correlation plot
         ax4 = axes[1, 1]
         ax4.scatter(singles_A, coinc_AB, alpha=0.6, s=50)
-        ax4.set_xlabel('Detector A Rate (Hz)')
-        ax4.set_ylabel('A-B Coincidence Rate (Hz)')
-        ax4.set_title('Correlation: Singles vs Coincidences')
+        ax4.set_xlabel("Detector A Rate (Hz)")
+        ax4.set_ylabel("A-B Coincidence Rate (Hz)")
+        ax4.set_title("Correlation: Singles vs Coincidences")
         ax4.grid(True, alpha=0.3)
 
         # Add correlation coefficient
         if len(singles_A) > 1:
             correlation = np.corrcoef(singles_A, coinc_AB)[0, 1]
-            ax4.text(0.05, 0.95, f'R = {correlation:.3f}',
-                    transform=ax4.transAxes, verticalalignment='top',
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax4.text(
+                0.05,
+                0.95,
+                f"R = {correlation:.3f}",
+                transform=ax4.transAxes,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            )
 
         plt.tight_layout()
 
