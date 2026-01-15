@@ -88,11 +88,20 @@ class CD48:
     def _find_cd48(self) -> str:
         """Attempt to auto-detect CD48 on serial ports"""
         ports = serial.tools.list_ports.comports()
+
+        # First pass: look for Cypress VID (more reliable)
         for port in ports:
-            # CD48 uses Cypress PSoC5 chip - look for relevant identifiers
+            # CD48 uses Cypress PSoC5 chip with VID 0x04b4
+            if port.vid == 0x04B4:
+                self._logger.info(f"Found CD48 (Cypress): {port.device} - {port.description}")
+                return str(port.device)
+
+        # Second pass: fall back to description matching
+        for port in ports:
             if "USB" in port.description or "Serial" in port.description:
                 self._logger.info(f"Found potential device: {port.device} - {port.description}")
                 return str(port.device)
+
         raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
 
     def _send_command(self, command: str) -> str:

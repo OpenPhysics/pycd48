@@ -1,0 +1,16 @@
+#!/bin/bash
+# Run Python scripts with Windows Python (for CD48 USB access)
+# Usage: ./winpy script.py [args...]
+
+if [ $# -eq 0 ]; then
+    powershell.exe -Command "py"
+else
+    SCRIPT="$1"
+    shift
+    if [[ "$SCRIPT" == /* ]]; then
+        WIN_PATH=$(wslpath -w "$SCRIPT")
+    else
+        WIN_PATH=$(wslpath -w "$(pwd)/$SCRIPT")
+    fi
+    powershell.exe -Command "py '$WIN_PATH' $*"
+fi
