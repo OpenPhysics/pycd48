@@ -1,7 +1,7 @@
 # pycd48 - Python Interface for CD48 Coincidence Counter
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 A comprehensive Python library for controlling the [Red Dog Physics CD48 Coincidence Counter](https://www.reddogphysics.com/cd48.html) via USB serial interface.
 
@@ -32,21 +32,33 @@ This library provides a simple, Pythonic interface to control the device, config
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.10 or higher
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - USB serial drivers (usually pre-installed on modern systems)
+
+### Install uv (recommended)
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
 ### Install from source
 
 ```bash
 git clone https://github.com/OpenPhysics/pycd48.git
 cd pycd48
+
+# Using uv (recommended - automatically creates virtual environment)
+uv sync
+
+# Or using pip (requires manual virtual environment)
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e .
-```
-
-### Install dependencies only
-
-```bash
-pip install -r requirements.txt
 ```
 
 ## Quick Start
@@ -350,19 +362,30 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ### Development
 
-The codebase includes comprehensive type annotations for improved code quality and IDE support.
-
-**Type Checking:**
-
-Run mypy to verify type correctness:
+Install development dependencies:
 ```bash
-mypy pycd48/ tests/
+uv sync --extra dev
 ```
 
 **Running Tests:**
-
 ```bash
-pytest tests/
+uv run pytest tests/
+```
+
+**Type Checking:**
+```bash
+uv run mypy pycd48/ tests/
+```
+
+**Code Formatting:**
+```bash
+uv run black pycd48/ tests/
+uv run flake8 pycd48/ tests/
+```
+
+**Pre-commit Hooks:**
+```bash
+uv run pre-commit install
 ```
 
 **Code Quality:**
@@ -371,6 +394,8 @@ The project uses:
 - Full type annotations (PEP 484) with TypedDict for structured data
 - Function overloads for precise type inference
 - Mypy for static type checking
+- Black for code formatting
+- Flake8 for linting
 
 ## Use Cases
 
