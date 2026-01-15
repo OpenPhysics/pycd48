@@ -271,6 +271,10 @@ python examples/overflow_demo.py
 
 See the [examples README](examples/README.md) for detailed descriptions of each example.
 
+## Web Interface
+
+A browser-based interface using the Web Serial API is available in the [`web/`](web/) directory. It works in Chrome and Edge without installing Python. See [web/README.md](web/README.md) for details.
+
 ## Common Channel Configurations
 
 ```python
