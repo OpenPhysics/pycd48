@@ -10,6 +10,7 @@ long-term measurements. Features include:
 - Graceful shutdown on Ctrl+C
 """
 
+from typing import Optional, Any
 import time
 import csv
 import signal
@@ -22,7 +23,7 @@ from pycd48 import CD48
 class DataLogger:
     """CD48 data logger with CSV output"""
 
-    def __init__(self, cd48, output_dir='data', prefix='cd48'):
+    def __init__(self, cd48: CD48, output_dir: str = 'data', prefix: str = 'cd48') -> None:
         """
         Initialize data logger.
 
@@ -35,10 +36,10 @@ class DataLogger:
         prefix : str
             Prefix for output filenames
         """
-        self.cd48 = cd48
-        self.output_dir = Path(output_dir)
-        self.prefix = prefix
-        self.running = False
+        self.cd48: CD48 = cd48
+        self.output_dir: Path = Path(output_dir)
+        self.prefix: str = prefix
+        self.running: bool = False
 
         # Create output directory if it doesn't exist
         self.output_dir.mkdir(exist_ok=True)
@@ -46,12 +47,12 @@ class DataLogger:
         # Setup signal handler for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
 
-    def _signal_handler(self, sig, frame):
+    def _signal_handler(self, sig: int, frame: Any) -> None:
         """Handle Ctrl+C gracefully"""
         print('\n\nShutdown signal received. Stopping data collection...')
         self.running = False
 
-    def _create_csv_file(self):
+    def _create_csv_file(self) -> Path:
         """Create a new CSV file with timestamp"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = self.output_dir / f'{self.prefix}_{timestamp}.csv'
@@ -75,7 +76,7 @@ class DataLogger:
 
         return filename
 
-    def log_data(self, interval=1.0, duration=None, display_interval=10):
+    def log_data(self, interval: float = 1.0, duration: Optional[float] = None, display_interval: int = 10) -> None:
         """
         Start logging data to CSV file.
 
@@ -173,7 +174,7 @@ class DataLogger:
             print("=" * 60)
 
 
-def main():
+def main() -> None:
     print("=" * 60)
     print("CD48 Data Logger")
     print("=" * 60)

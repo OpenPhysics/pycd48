@@ -23,7 +23,7 @@ from datetime import datetime
 from pycd48 import CD48
 
 
-def main():
+def main() -> None:
     print("=" * 60)
     print("CD48 Cosmic Ray Muon Telescope")
     print("=" * 60)

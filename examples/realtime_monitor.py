@@ -16,7 +16,7 @@ import sys
 from pycd48 import CD48
 
 
-def main():
+def main() -> None:
     print("=" * 60)
     print("CD48 Real-time Monitor using Repeat Mode")
     print("=" * 60)
