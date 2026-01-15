@@ -10,7 +10,8 @@ long-term measurements. Features include:
 - Graceful shutdown on Ctrl+C
 """
 
-from typing import Optional, Any
+from typing import Optional
+from types import FrameType
 import time
 import csv
 import signal
@@ -47,7 +48,7 @@ class DataLogger:
         # Setup signal handler for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
 
-    def _signal_handler(self, sig: int, frame: Any) -> None:
+    def _signal_handler(self, sig: int, frame: Optional[FrameType]) -> None:
         """Handle Ctrl+C gracefully"""
         print('\n\nShutdown signal received. Stopping data collection...')
         self.running = False

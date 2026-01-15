@@ -16,7 +16,7 @@ This example shows:
 - Automatic interval adjustment
 """
 
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Union
 import time
 from pycd48 import CD48
 
@@ -43,7 +43,7 @@ def check_overflow(cd48: CD48) -> Tuple[int, List[int]]:
     return overflow_flag, overflowed_counters
 
 
-def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int = 1000000) -> Dict[str, Any]:
+def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int = 1000000) -> Dict[str, Union[List[float], List[List[int]], List[int]]]:
     """
     Perform measurement with automatic interval adjustment to prevent overflow.
 

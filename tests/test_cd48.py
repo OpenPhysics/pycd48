@@ -5,7 +5,7 @@ These tests mock the serial communication to test the CD48 interface
 without requiring actual hardware.
 """
 
-from typing import Any, List, cast
+from typing import List, cast
 import unittest
 from unittest.mock import Mock, MagicMock, patch
 import serial

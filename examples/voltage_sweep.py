@@ -13,14 +13,15 @@ Example use case: Finding optimal PMT operating voltage by sweeping
 the high voltage and measuring count rates.
 """
 
-from typing import Dict, Any
+from typing import Dict
 import time
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from pycd48 import CD48
 
 
-def sweep_voltage(cd48: CD48, voltage_range: Any, measurement_time: float = 5) -> Dict[str, Any]:
+def sweep_voltage(cd48: CD48, voltage_range: npt.NDArray[np.floating], measurement_time: float = 5) -> Dict[str, npt.NDArray[np.floating]]:
     """
     Sweep DAC voltage and measure count rates.
 

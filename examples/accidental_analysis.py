@@ -23,15 +23,16 @@ This example demonstrates:
 - Visualization of results
 """
 
-from typing import Dict, Any
+from typing import Dict, Union
 import time
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from scipy import stats
 from pycd48 import CD48
 
 
-def measure_rates(cd48: CD48, num_samples: int = 30, interval: float = 2.0) -> Dict[str, Any]:
+def measure_rates(cd48: CD48, num_samples: int = 30, interval: float = 2.0) -> Dict[str, npt.NDArray[np.floating]]:
     """
     Measure singles and coincidence rates over multiple samples.
 
@@ -95,7 +96,7 @@ def measure_rates(cd48: CD48, num_samples: int = 30, interval: float = 2.0) -> D
     }
 
 
-def analyze_coincidences(data: Dict[str, Any], tau: float = 25e-9) -> Dict[str, Dict[str, Any]]:
+def analyze_coincidences(data: Dict[str, npt.NDArray[np.floating]], tau: float = 25e-9) -> Dict[str, Dict[str, Union[float, int]]]:
     """
     Analyze coincidence data to separate true from accidental coincidences.
 
@@ -179,7 +180,7 @@ def analyze_coincidences(data: Dict[str, Any], tau: float = 25e-9) -> Dict[str, 
     return results
 
 
-def print_results(results: Dict[str, Dict[str, Any]]) -> None:
+def print_results(results: Dict[str, Dict[str, Union[float, int]]]) -> None:
     """Print analysis results in a formatted table."""
     print("=" * 70)
     print("COINCIDENCE ANALYSIS RESULTS")
@@ -239,7 +240,7 @@ def print_results(results: Dict[str, Dict[str, Any]]) -> None:
     print()
 
 
-def plot_results(data: Dict[str, Any], results: Dict[str, Dict[str, Any]]) -> None:
+def plot_results(data: Dict[str, npt.NDArray[np.floating]], results: Dict[str, Dict[str, Union[float, int]]]) -> None:
     """Create visualization of coincidence analysis."""
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
