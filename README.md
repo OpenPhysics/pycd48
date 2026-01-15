@@ -343,9 +343,22 @@ If you see responses, the device is working. Common commands:
 
 ### WSL2 users
 
-USB devices don't pass through to WSL2 automatically. Options:
-1. **Use Windows Python** - Run pycd48 with `py` instead of `python`
-2. **USB/IP passthrough** - Use `usbipd-win` (can be unreliable for serial devices)
+USB devices don't pass through to WSL2 automatically. The **recommended approach** is to use Windows Python:
+
+```bash
+# Install pycd48 on Windows Python
+py -m pip install -e /path/to/pycd48
+
+# Run your script with Windows Python
+py your_script.py
+```
+
+The repository includes a `winpy` helper script that wraps Windows Python for convenience:
+```bash
+./winpy your_script.py
+```
+
+**Note:** USB/IP passthrough (`usbipd-win`) does not work reliably with the CD48. The Cypress CDC ACM serial interface experiences connection reset errors over USB/IP, causing timeouts during serial communication. Use Windows Python instead.
 
 ### No data / zero counts
 
