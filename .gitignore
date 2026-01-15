@@ -40,3 +40,8 @@ Thumbs.db
 *.csv
 *.dat
 *.log
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
