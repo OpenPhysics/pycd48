@@ -1,0 +1,222 @@
+"""
+Real-time plotting utilities for CD48 measurements.
+
+Provides matplotlib-based visualization for count rates.
+"""
+
+import time
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .cd48 import CD48
+
+# Lazy import matplotlib to avoid import errors if not installed
+_plt = None
+_FuncAnimation = None
+
+
+def _ensure_matplotlib():
+    """Lazy import matplotlib."""
+    global _plt, _FuncAnimation
+    if _plt is None:
+        import matplotlib.pyplot as plt
+        from matplotlib.animation import FuncAnimation
+
+        _plt = plt
+        _FuncAnimation = FuncAnimation
+
+
+class RatePlotter:
+    """
+    Real-time count rate plotter.
+
+    Example:
+    --------
+    >>> with CD48() as cd48:
+    ...     plotter = RatePlotter(cd48, channels=[0, 1, 4])
+    ...     plotter.run(duration=60)  # Plot for 60 seconds
+    """
+
+    def __init__(
+        self,
+        cd48: "CD48",
+        channels: Optional[List[int]] = None,
+        max_points: int = 100,
+        interval: float = 1.0,
+    ):
+        """
+        Initialize rate plotter.
+
+        Parameters:
+        -----------
+        cd48 : CD48
+            Connected CD48 instance
+        channels : list of int, optional
+            Channels to plot (default: [0, 1, 4] for A, B, and A+B)
+        max_points : int
+            Maximum number of points to display (older points scroll off)
+        interval : float
+            Update interval in seconds
+        """
+        _ensure_matplotlib()
+
+        self.cd48 = cd48
+        self.channels = channels if channels is not None else [0, 1, 4]
+        self.max_points = max_points
+        self.interval = interval
+
+        self._times: List[float] = []
+        self._rates: dict = {ch: [] for ch in self.channels}
+        self._start_time: float = 0
+
+        self._fig = None
+        self._ax = None
+        self._lines = {}
+        self._animation = None
+
+    def _init_plot(self):
+        """Initialize the plot."""
+        self._fig, self._ax = _plt.subplots(figsize=(10, 6))
+        self._ax.set_xlabel("Time (s)")
+        self._ax.set_ylabel("Count Rate (Hz)")
+        self._ax.set_title("CD48 Real-time Count Rates")
+        self._ax.grid(True, alpha=0.3)
+
+        channel_names = {
+            0: "Ch0 (A)",
+            1: "Ch1 (B)",
+            2: "Ch2 (C)",
+            3: "Ch3 (D)",
+            4: "Ch4 (A+B)",
+            5: "Ch5 (A+C)",
+            6: "Ch6 (A+D)",
+            7: "Ch7 (B+C+D)",
+        }
+
+        for ch in self.channels:
+            (line,) = self._ax.plot([], [], label=channel_names.get(ch, f"Ch{ch}"))
+            self._lines[ch] = line
+
+        self._ax.legend(loc="upper right")
+        return list(self._lines.values())
+
+    def _update(self, frame):
+        """Update function for animation."""
+        # Read counts
+        data = self.cd48.get_counts(human_readable=False)
+        now = time.time() - self._start_time
+
+        # Calculate rates
+        self._times.append(now)
+        for ch in self.channels:
+            rate = data["counts"][ch] / self.interval
+            self._rates[ch].append(rate)
+
+        # Trim to max_points
+        if len(self._times) > self.max_points:
+            self._times = self._times[-self.max_points :]
+            for ch in self.channels:
+                self._rates[ch] = self._rates[ch][-self.max_points :]
+
+        # Update plot data
+        for ch in self.channels:
+            self._lines[ch].set_data(self._times, self._rates[ch])
+
+        # Adjust axes
+        if self._times:
+            x_min = max(0, self._times[-1] - self.max_points * self.interval)
+            x_max = self._times[-1] + self.interval
+            self._ax.set_xlim(x_min, x_max)
+            all_rates = [r for ch_rates in self._rates.values() for r in ch_rates]
+            if all_rates:
+                max_rate = max(all_rates)
+                self._ax.set_ylim(0, max(10, max_rate * 1.1))
+
+        return list(self._lines.values())
+
+    def run(self, duration: Optional[float] = None):
+        """
+        Start the real-time plot.
+
+        Parameters:
+        -----------
+        duration : float, optional
+            How long to run in seconds. If None, runs until window is closed.
+        """
+        self._init_plot()
+        self._start_time = time.time()
+        self.cd48.clear_counts()
+
+        frames = None
+        if duration is not None:
+            frames = int(duration / self.interval)
+
+        self._animation = _FuncAnimation(
+            self._fig,
+            self._update,
+            frames=frames,
+            interval=int(self.interval * 1000),
+            blit=False,
+            repeat=False,
+        )
+
+        _plt.show()
+
+    def save_animation(self, filename: str, duration: float, fps: int = 1):
+        """
+        Save animation to file.
+
+        Parameters:
+        -----------
+        filename : str
+            Output filename (e.g., 'rates.gif' or 'rates.mp4')
+        duration : float
+            Recording duration in seconds
+        fps : int
+            Frames per second
+        """
+        self._init_plot()
+        self._start_time = time.time()
+        self.cd48.clear_counts()
+
+        frames = int(duration / self.interval)
+        self._animation = _FuncAnimation(
+            self._fig,
+            self._update,
+            frames=frames,
+            interval=int(self.interval * 1000),
+            blit=False,
+            repeat=False,
+        )
+
+        self._animation.save(filename, fps=fps)
+        _plt.close()
+
+
+def plot_rates(
+    cd48: "CD48",
+    duration: float = 60,
+    channels: Optional[List[int]] = None,
+    interval: float = 1.0,
+):
+    """
+    Convenience function for real-time rate plotting.
+
+    Parameters:
+    -----------
+    cd48 : CD48
+        Connected CD48 instance
+    duration : float
+        How long to plot in seconds
+    channels : list of int, optional
+        Channels to plot
+    interval : float
+        Update interval in seconds
+
+    Example:
+    --------
+    >>> with CD48() as cd48:
+    ...     plot_rates(cd48, duration=120, channels=[0, 1])
+    """
+    plotter = RatePlotter(cd48, channels=channels, interval=interval)
+    plotter.run(duration=duration)

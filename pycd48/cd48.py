@@ -38,6 +38,29 @@ class CountsDict(TypedDict):
     overflow: int
 
 
+class RateResult(TypedDict):
+    """Type definition for rate measurement results."""
+
+    counts: int
+    duration: float
+    rate: float
+    channel: int
+
+
+class CoincidenceResult(TypedDict):
+    """Type definition for coincidence measurement results."""
+
+    singles_a: int
+    singles_b: int
+    coincidences: int
+    duration: float
+    rate_a: float
+    rate_b: float
+    coincidence_rate: float
+    accidental_rate: float
+    true_coincidence_rate: float
+
+
 class CD48:
     """Interface for Red Dog Physics CD48 Coincidence Counter"""
 
@@ -119,7 +142,11 @@ class CD48:
 
     def get_counts(self, human_readable: bool = True) -> str | CountsDict:
         """
-        Get current counts from all channels
+        Get current counts from all channels and reset counters to zero.
+
+        Note: The CD48 hardware clears counters when read. This is by design
+        for continuous measurement. Use read_and_clear_counts() if you want
+        a method name that makes this behavior explicit.
 
         Parameters:
         -----------
@@ -150,8 +177,26 @@ class CD48:
                     raise CD48ParseError(f"Failed to parse counts response: {response}") from e
             raise CD48ParseError(f"Unexpected response format: {response}")
 
+    def read_and_clear_counts(self, human_readable: bool = True) -> str | CountsDict:
+        """
+        Read current counts and clear counters (explicit alias for get_counts).
+
+        This method is identical to get_counts() but with a name that makes
+        the clearing behavior explicit.
+
+        Parameters:
+        -----------
+        human_readable : bool
+            If True, returns formatted string. If False, returns parsed dict.
+
+        Returns:
+        --------
+        str or dict : Raw response string or parsed dict with counts and overflow
+        """
+        return self.get_counts(human_readable=human_readable)
+
     def clear_counts(self) -> None:
-        """Clear all counters by reading them"""
+        """Clear all counters by reading and discarding the values."""
         self.get_counts(human_readable=False)
 
     def set_channel(self, channel: int, A: int = 0, B: int = 0, C: int = 0, D: int = 0) -> str:
@@ -276,6 +321,107 @@ class CD48:
     def close(self) -> None:
         """Close serial connection"""
         self.ser.close()
+
+    # High-level measurement methods
+
+    def measure_rate(self, channel: int = 0, duration: float = 1.0) -> RateResult:
+        """
+        Measure count rate on a single channel.
+
+        Parameters:
+        -----------
+        channel : int
+            Channel number (0-7) to measure
+        duration : float
+            Measurement duration in seconds
+
+        Returns:
+        --------
+        RateResult : dict with counts, duration, rate, and channel
+
+        Example:
+        --------
+        >>> result = cd48.measure_rate(channel=0, duration=10)
+        >>> print(f"Rate: {result['rate']:.2f} Hz")
+        """
+        if not 0 <= channel <= 7:
+            raise ValueError(f"Channel must be 0-7, got {channel}")
+
+        self.clear_counts()
+        time.sleep(duration)
+        data = self.get_counts(human_readable=False)
+        counts = data["counts"][channel]
+
+        return {
+            "counts": counts,
+            "duration": duration,
+            "rate": counts / duration,
+            "channel": channel,
+        }
+
+    def measure_coincidence_rate(
+        self,
+        duration: float = 1.0,
+        singles_a_channel: int = 0,
+        singles_b_channel: int = 1,
+        coincidence_channel: int = 4,
+        coincidence_window: float = 25e-9,
+    ) -> CoincidenceResult:
+        """
+        Measure coincidence rate with accidental correction.
+
+        Calculates true coincidence rate by subtracting expected accidentals:
+            R_true = R_measured - 2 * tau * R_a * R_b
+
+        Parameters:
+        -----------
+        duration : float
+            Measurement duration in seconds
+        singles_a_channel : int
+            Channel for singles A (default: 0)
+        singles_b_channel : int
+            Channel for singles B (default: 1)
+        coincidence_channel : int
+            Channel for A+B coincidences (default: 4)
+        coincidence_window : float
+            Coincidence window in seconds (default: 25 ns)
+
+        Returns:
+        --------
+        CoincidenceResult : dict with singles, coincidences, rates, and corrections
+
+        Example:
+        --------
+        >>> result = cd48.measure_coincidence_rate(duration=60)
+        >>> print(f"True coincidence rate: {result['true_coincidence_rate']:.2f} Hz")
+        """
+        self.clear_counts()
+        time.sleep(duration)
+        data = self.get_counts(human_readable=False)
+
+        singles_a = data["counts"][singles_a_channel]
+        singles_b = data["counts"][singles_b_channel]
+        coincidences = data["counts"][coincidence_channel]
+
+        rate_a = singles_a / duration
+        rate_b = singles_b / duration
+        coincidence_rate = coincidences / duration
+
+        # Expected accidental coincidence rate: R_acc = 2 * tau * R_a * R_b
+        accidental_rate = 2 * coincidence_window * rate_a * rate_b
+        true_coincidence_rate = max(0, coincidence_rate - accidental_rate)
+
+        return {
+            "singles_a": singles_a,
+            "singles_b": singles_b,
+            "coincidences": coincidences,
+            "duration": duration,
+            "rate_a": rate_a,
+            "rate_b": rate_b,
+            "coincidence_rate": coincidence_rate,
+            "accidental_rate": accidental_rate,
+            "true_coincidence_rate": true_coincidence_rate,
+        }
 
     def __enter__(self) -> "CD48":
         return self

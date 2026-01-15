@@ -7,11 +7,31 @@ via USB serial interface.
 
 from importlib.metadata import version, PackageNotFoundError
 
-from .cd48 import CD48, CD48Error, CD48ParseError, CD48DeviceNotFoundError
+from .cd48 import (
+    CD48,
+    CD48Error,
+    CD48ParseError,
+    CD48DeviceNotFoundError,
+    CountsDict,
+    RateResult,
+    CoincidenceResult,
+)
+from .logging import DataLogger, log_continuous
 
 try:
     __version__ = version("pycd48")
 except PackageNotFoundError:
     __version__ = "0.1.0"  # Fallback for development
 
-__all__ = ["CD48", "CD48Error", "CD48ParseError", "CD48DeviceNotFoundError", "__version__"]
+__all__ = [
+    "CD48",
+    "CD48Error",
+    "CD48ParseError",
+    "CD48DeviceNotFoundError",
+    "CountsDict",
+    "RateResult",
+    "CoincidenceResult",
+    "DataLogger",
+    "log_continuous",
+    "__version__",
+]
