@@ -10,13 +10,15 @@ This is useful for:
 - Setting consistent trigger levels across multiple detectors
 """
 
+from typing import Dict, Tuple, List, Sequence
 import time
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from pycd48 import CD48
 
 
-def scan_trigger_levels(cd48, channel_config, voltage_range, measurement_time=5):
+def scan_trigger_levels(cd48: CD48, channel_config: Dict[int, Tuple[int, int, int, int]], voltage_range: npt.NDArray[np.floating], measurement_time: float = 5) -> Tuple[List[float], Dict[int, List[float]]]:
     """
     Scan trigger levels and measure count rates.
 
@@ -73,7 +75,7 @@ def scan_trigger_levels(cd48, channel_config, voltage_range, measurement_time=5)
     return voltages, results
 
 
-def main():
+def main() -> None:
     print("=" * 60)
     print("CD48 Trigger Level Calibration")
     print("=" * 60)

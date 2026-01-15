@@ -5,6 +5,7 @@ These tests mock the serial communication to test the CD48 interface
 without requiring actual hardware.
 """
 
+from typing import List, cast
 import unittest
 from unittest.mock import Mock, MagicMock, patch
 import serial
@@ -14,14 +15,14 @@ from pycd48 import CD48
 class TestCD48(unittest.TestCase):
     """Test cases for CD48 class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         # Mock serial.Serial to avoid needing actual hardware
-        self.mock_serial = Mock(spec=serial.Serial)
+        self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b'OK\r\n')
 
     @patch('serial.Serial')
-    def test_init_with_port(self, mock_serial_class):
+    def test_init_with_port(self, mock_serial_class: MagicMock) -> None:
         """Test initialization with specified port."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -36,10 +37,10 @@ class TestCD48(unittest.TestCase):
 
     @patch('serial.tools.list_ports.comports')
     @patch('serial.Serial')
-    def test_init_auto_detect(self, mock_serial_class, mock_comports):
+    def test_init_auto_detect(self, mock_serial_class: MagicMock, mock_comports: MagicMock) -> None:
         """Test initialization with auto-detection."""
         # Mock port detection
-        mock_port = Mock()
+        mock_port: Mock = Mock()
         mock_port.device = '/dev/ttyUSB0'
         mock_port.description = 'USB Serial Device'
         mock_comports.return_value = [mock_port]
@@ -51,7 +52,7 @@ class TestCD48(unittest.TestCase):
         self.assertIsNotNone(cd48.ser)
 
     @patch('serial.Serial')
-    def test_set_channel(self, mock_serial_class):
+    def test_set_channel(self, mock_serial_class: MagicMock) -> None:
         """Test set_channel command."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -64,7 +65,7 @@ class TestCD48(unittest.TestCase):
         self.assertEqual(call_args, b'S41100\r')
 
     @patch('serial.Serial')
-    def test_set_trigger_level(self, mock_serial_class):
+    def test_set_trigger_level(self, mock_serial_class: MagicMock) -> None:
         """Test set_trigger_level voltage conversion."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -80,7 +81,7 @@ class TestCD48(unittest.TestCase):
         self.assertTrue(call_args.endswith(b'\r'))
 
     @patch('serial.Serial')
-    def test_get_counts_parsed(self, mock_serial_class):
+    def test_get_counts_parsed(self, mock_serial_class: MagicMock) -> None:
         """Test get_counts with parsing."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -91,13 +92,15 @@ class TestCD48(unittest.TestCase):
         result = cd48.get_counts(human_readable=False)
 
         self.assertIsInstance(result, dict)
-        self.assertEqual(len(result['counts']), 8)
-        self.assertEqual(result['counts'][0], 100)
-        self.assertEqual(result['counts'][4], 50)
+        assert isinstance(result, dict)  # Type narrowing for mypy
+        counts = cast(List[int], result['counts'])
+        self.assertEqual(len(counts), 8)
+        self.assertEqual(counts[0], 100)
+        self.assertEqual(counts[4], 50)
         self.assertEqual(result['overflow'], 0)
 
     @patch('serial.Serial')
-    def test_voltage_clamping(self, mock_serial_class):
+    def test_voltage_clamping(self, mock_serial_class: MagicMock) -> None:
         """Test that voltages are clamped to valid range."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -111,7 +114,7 @@ class TestCD48(unittest.TestCase):
         self.assertEqual(call_args, b'L255\r')
 
     @patch('serial.Serial')
-    def test_context_manager(self, mock_serial_class):
+    def test_context_manager(self, mock_serial_class: MagicMock) -> None:
         """Test context manager (with statement) support."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -122,7 +125,7 @@ class TestCD48(unittest.TestCase):
         self.mock_serial.close.assert_called_once()
 
     @patch('serial.Serial')
-    def test_impedance_commands(self, mock_serial_class):
+    def test_impedance_commands(self, mock_serial_class: MagicMock) -> None:
         """Test impedance setting commands."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -135,7 +138,7 @@ class TestCD48(unittest.TestCase):
         self.mock_serial.write.assert_called_with(b'Z\r')
 
     @patch('serial.Serial')
-    def test_repeat_mode(self, mock_serial_class):
+    def test_repeat_mode(self, mock_serial_class: MagicMock) -> None:
         """Test repeat mode commands."""
         mock_serial_class.return_value = self.mock_serial
 
@@ -160,7 +163,7 @@ class TestCD48EdgeCases(unittest.TestCase):
 
     @patch('serial.tools.list_ports.comports')
     @patch('serial.Serial')
-    def test_no_device_found(self, mock_serial_class, mock_comports):
+    def test_no_device_found(self, mock_serial_class: MagicMock, mock_comports: MagicMock) -> None:
         """Test behavior when no device is found."""
         # Mock empty port list
         mock_comports.return_value = []
@@ -171,9 +174,9 @@ class TestCD48EdgeCases(unittest.TestCase):
         self.assertIn('Could not find CD48', str(context.exception))
 
     @patch('serial.Serial')
-    def test_channel_range(self, mock_serial_class):
+    def test_channel_range(self, mock_serial_class: MagicMock) -> None:
         """Test channel number validation (0-7)."""
-        mock_serial = Mock(spec=serial.Serial)
+        mock_serial: Mock = Mock()
         mock_serial.read_all = Mock(return_value=b'OK\r\n')
         mock_serial_class.return_value = mock_serial
 

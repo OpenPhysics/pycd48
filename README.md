@@ -26,6 +26,7 @@ This library provides a simple, Pythonic interface to control the device, config
 - 💾 **Data logging** to CSV and other formats
 - 📚 **Comprehensive examples** for various physics experiments
 - 🔧 **Hardware control** (trigger levels, impedance, DAC output)
+- 🔍 **Full type annotations** for enhanced IDE support and type safety
 
 ## Installation
 
@@ -346,6 +347,30 @@ MIT License - see LICENSE file for details
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
+
+### Development
+
+The codebase includes comprehensive type annotations for improved code quality and IDE support.
+
+**Type Checking:**
+
+Run mypy to verify type correctness:
+```bash
+mypy pycd48/ tests/
+```
+
+**Running Tests:**
+
+```bash
+pytest tests/
+```
+
+**Code Quality:**
+
+The project uses:
+- Full type annotations (PEP 484) with TypedDict for structured data
+- Function overloads for precise type inference
+- Mypy for static type checking
 
 ## Use Cases
 

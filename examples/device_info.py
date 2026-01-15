@@ -7,7 +7,7 @@ Simple script to test connection and display device information.
 from pycd48 import CD48
 
 
-def main():
+def main() -> None:
     try:
         # Connect to CD48
         print("Attempting to connect to CD48...")

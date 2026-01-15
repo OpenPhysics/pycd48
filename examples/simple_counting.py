@@ -9,7 +9,7 @@ import time
 from pycd48 import CD48
 
 
-def main():
+def main() -> None:
     # Connect to CD48
     # Auto-detects port, or specify: CD48(port='COM3') on Windows
     # or CD48(port='/dev/ttyUSB0') on Linux

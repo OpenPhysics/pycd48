@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pycd48 import CD48
 
 
-def main():
+def main() -> None:
     # Connect to CD48
     with CD48() as cd48:
         print("Connected to CD48")
