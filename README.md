@@ -1,19 +1,31 @@
 # pycd48 - Python Interface for CD48 Coincidence Counter
 
-A Python library for controlling the Red Dog Physics CD48 Coincidence Counter via USB serial interface.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+
+A comprehensive Python library for controlling the [Red Dog Physics CD48 Coincidence Counter](https://www.reddogphysics.com/cd48.html) via USB serial interface.
 
 ## Overview
 
-The CD48 is a multi-channel coincidence counter designed for physics experiments, particularly cosmic ray detection and quantum optics. This library provides a simple Python interface to control the device, configure channels, and acquire data.
+The **CD48** is a professional 4-channel coincidence counter designed for advanced physics experiments including:
+- 🌌 **Cosmic ray detection** and muon lifetime measurements
+- 🔬 **Quantum optics** experiments (entanglement, Bell inequalities)
+- ⚛️ **Nuclear physics** and particle detection
+- 📊 **Multi-detector correlation** studies
+
+This library provides a simple, Pythonic interface to control the device, configure channels, acquire data, and perform sophisticated analysis.
 
 ## Features
 
-- Simple Python API for all CD48 commands
-- Auto-detection of USB serial port
-- Context manager support for clean resource management
-- Configurable channel mappings for singles and coincidence counting
-- Support for all 8 input channels and counter configurations
-- Examples for common use cases
+- 🚀 **Simple Python API** for all CD48 commands
+- 🔌 **Auto-detection** of USB serial port
+- 🛡️ **Context manager** support for clean resource management
+- ⚙️ **Flexible channel configuration** for singles and multi-fold coincidences
+- 📊 **Built-in data analysis** tools (statistics, accidental corrections)
+- 📈 **Visualization support** with matplotlib integration
+- 💾 **Data logging** to CSV and other formats
+- 📚 **Comprehensive examples** for various physics experiments
+- 🔧 **Hardware control** (trigger levels, impedance, DAC output)
 
 ## Installation
 
@@ -158,39 +170,51 @@ with CD48() as cd48:
 
 ## Examples
 
+The library includes comprehensive examples for various use cases. See the [examples directory](examples/) for complete code.
+
 ### Example 1: Device Information
-
 Test connection and display device info:
-
 ```bash
 python examples/device_info.py
 ```
 
 ### Example 2: Simple Counting
-
 Count singles and coincidences on multiple channels:
-
 ```bash
 python examples/simple_counting.py
 ```
 
-This example:
-- Configures 8 counters for various combinations
-- Counts for 10 seconds
-- Displays results and calculates rates
-
 ### Example 3: Continuous Data Collection
-
-Monitor and plot count rates over time:
-
+Monitor and plot count rates over time with statistical analysis:
 ```bash
 python examples/continuous_collection.py
 ```
 
-This example:
-- Collects data over 60 seconds
-- Calculates statistics and accidental coincidence rates
-- Generates time series and histogram plots
+### Example 4: Cosmic Ray Detection
+Configure for cosmic ray telescope with multiple detectors:
+```bash
+python examples/cosmic_ray_telescope.py
+```
+
+### Example 5: Trigger Level Calibration
+Automatically find optimal trigger threshold for your detectors:
+```bash
+python examples/calibrate_trigger.py
+```
+
+### Example 6: Data Logging
+Log continuous data to CSV for long-term measurements:
+```bash
+python examples/data_logger.py
+```
+
+### Example 7: Accidental Coincidence Analysis
+Detailed analysis of true vs. accidental coincidences:
+```bash
+python examples/accidental_analysis.py
+```
+
+See the [examples README](examples/README.md) for detailed descriptions of each example.
 
 ## Common Channel Configurations
 
@@ -276,12 +300,53 @@ MIT License - see LICENSE file for details
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
-## Links
+## Use Cases
 
-- [Red Dog Physics](http://reddogphysics.com/) - Manufacturer
-- [CD48 Product Page](http://reddogphysics.com/cd48.html)
-- [GitHub Repository](https://github.com/OpenPhysics/pycd48)
+### Cosmic Ray Detection
+The CD48 is ideal for cosmic ray experiments:
+- Measure muon flux rates at different altitudes
+- Build multi-detector telescopes for directional measurements
+- Study cosmic ray correlations and timing
+
+### Quantum Optics
+Perfect for quantum mechanics experiments:
+- Photon coincidence counting for entangled photon pairs
+- Bell inequality tests
+- Quantum key distribution (QKD) demonstrations
+
+### Nuclear and Particle Physics
+Professional-grade counting for radiation detection:
+- Gamma-gamma coincidence spectroscopy
+- Beta-gamma correlation measurements
+- Multi-detector nuclear decay studies
+
+### Educational Laboratories
+Excellent for teaching advanced physics concepts:
+- Statistical analysis of random processes
+- Coincidence timing and correlation
+- Data acquisition and analysis techniques
+
+## Links and Resources
+
+- 🏢 [Red Dog Physics](https://www.reddogphysics.com/) - Manufacturer
+- 📦 [CD48 Product Page](https://www.reddogphysics.com/cd48.html) - Official hardware documentation
+- 💻 [GitHub Repository](https://github.com/OpenPhysics/pycd48) - Source code and issues
+- 📖 [API Documentation](https://github.com/OpenPhysics/pycd48#cd48-class-reference) - Complete API reference
+
+## Citation
+
+If you use this library in your research, please cite:
+
+```bibtex
+@software{pycd48,
+  title = {pycd48: Python Interface for CD48 Coincidence Counter},
+  author = {OpenPhysics Contributors},
+  year = {2026},
+  url = {https://github.com/OpenPhysics/pycd48},
+  note = {Python library for Red Dog Physics CD48}
+}
+```
 
 ## Acknowledgments
 
-Based on the CD48 USB command protocol developed by Red Dog Physics.
+This library is based on the CD48 USB command protocol developed by [Red Dog Physics](https://www.reddogphysics.com/). The CD48 hardware is designed and manufactured by Red Dog Physics. For hardware specifications, manuals, and purchasing information, visit the [official CD48 product page](https://www.reddogphysics.com/cd48.html).

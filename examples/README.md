@@ -1,8 +1,18 @@
 # CD48 Examples
 
-This directory contains example scripts demonstrating how to use the pycd48 library.
+This directory contains comprehensive example scripts demonstrating how to use the pycd48 library for various physics experiments and applications.
 
-## Examples
+## Quick Start
+
+If you're new to the CD48, follow this recommended order:
+
+1. **device_info.py** - Verify your connection works
+2. **simple_counting.py** - Learn basic counting operations
+3. **calibrate_trigger.py** - Find optimal trigger levels for your detectors
+4. **continuous_collection.py** - Understand time-resolved measurements
+5. Then explore the advanced examples based on your application
+
+## Basic Examples
 
 ### 1. device_info.py
 
@@ -14,13 +24,18 @@ python device_info.py
 ```
 
 **What it does**:
-- Connects to the CD48
-- Displays firmware version
-- Shows current settings
-- Lists available commands
-- Tests the LEDs
+- Auto-detects and connects to the CD48
+- Displays firmware version and device info
+- Shows current configuration settings
+- Lists all available commands
+- Tests the LED indicators
 
-**Good for**: Verifying your setup works correctly
+**Perfect for**:
+- First-time setup verification
+- Troubleshooting connection issues
+- Quick device health check
+
+**Duration**: ~5 seconds
 
 ---
 
@@ -35,18 +50,25 @@ python simple_counting.py
 
 **What it does**:
 - Configures all 8 counters for various channel combinations
-- Counts for 10 seconds
-- Displays total counts and count rates
-- Shows singles on all 4 inputs
-- Shows 2-fold and 3-fold coincidences
+- Measures for 10 seconds with fixed trigger level
+- Displays total counts and count rates for:
+  - Singles on all 4 input channels
+  - 2-fold coincidences (A-B, A-C, B-C)
+  - 3-fold coincidences (A-B-C)
+- Shows overflow warnings if counters saturate
 
-**Good for**: Learning basic data acquisition
+**Perfect for**:
+- Learning basic data acquisition
+- Verifying detector signals
+- Quick signal quality check
+
+**Duration**: ~10 seconds
 
 ---
 
 ### 3. continuous_collection.py
 
-**Purpose**: Time-resolved data collection and analysis
+**Purpose**: Time-resolved data collection with visualization
 
 **Usage**:
 ```bash
@@ -56,17 +78,183 @@ python continuous_collection.py
 **What it does**:
 - Collects data continuously for 60 seconds (1-second intervals)
 - Monitors channels A, B, and A-B coincidences
-- Calculates statistics (mean, standard deviation)
-- Estimates accidental coincidence rate
-- Generates plots:
+- Calculates comprehensive statistics (mean, std, accidental rate)
+- Generates publication-quality plots:
   - Time series of count rates
-  - Histogram distributions
-- Saves plot as `cd48_data.png`
+  - Distribution histograms
+- Estimates true vs accidental coincidences
+- Saves results as `cd48_data.png`
 
-**Good for**:
-- Monitoring stability
-- Statistical analysis
-- Understanding coincidence corrections
+**Perfect for**:
+- Monitoring detector stability over time
+- Statistical analysis of count rates
+- Understanding accidental coincidence corrections
+- Preparing data for reports
+
+**Duration**: ~60 seconds
+
+---
+
+## Advanced Examples
+
+### 4. cosmic_ray_telescope.py
+
+**Purpose**: Cosmic ray muon detection with multi-detector telescope
+
+**Usage**:
+```bash
+python cosmic_ray_telescope.py
+```
+
+**What it does**:
+- Configures a vertical cosmic ray telescope with multiple detectors
+- Measures singles on 4 detectors (top, middle, bottom, background)
+- Counts 2-fold and 3-fold coincidences
+- Calculates telescope efficiency
+- Estimates muon flux (particles/m²·s)
+- Performs accidental coincidence corrections
+- Generates comprehensive analysis plots:
+  - Singles rates over time
+  - Coincidence rates with statistical uncertainty
+  - Rate distributions
+  - Correlation analysis
+- Saves timestamped results
+
+**Perfect for**:
+- Cosmic ray physics experiments
+- Educational muon lifetime measurements
+- Multi-detector correlation studies
+- Testing detector alignment and efficiency
+
+**Typical setup**:
+```
+Detector A (top)
+     ↓ muon path
+Detector C (middle)
+     ↓
+Detector B (bottom)
+Detector D (background, side)
+```
+
+**Duration**: ~5 minutes (configurable)
+
+---
+
+### 5. calibrate_trigger.py
+
+**Purpose**: Automatic trigger threshold calibration and optimization
+
+**Usage**:
+```bash
+python calibrate_trigger.py
+```
+
+**What it does**:
+- Scans trigger voltage from 0.1V to 2.0V in small steps
+- Measures count rate at each threshold level
+- Identifies the "knee" in the rate curve (noise threshold)
+- Provides recommended trigger levels for each channel
+- Generates diagnostic plots:
+  - Count rate vs trigger voltage (log scale)
+  - Normalized rates for easy comparison
+  - Marks optimal threshold points
+- Saves results as `trigger_calibration.png`
+
+**Perfect for**:
+- Finding optimal trigger levels for new detectors
+- Characterizing detector noise levels
+- Ensuring consistent thresholds across channels
+- Troubleshooting low signal-to-noise ratio
+
+**Duration**: ~1-2 minutes (depends on voltage range)
+
+**Tips**:
+- Run with detectors connected but no source for noise characterization
+- Run with source present to find signal threshold
+- Compare results between channels to match detector sensitivities
+
+---
+
+### 6. data_logger.py
+
+**Purpose**: Continuous data logging to CSV for long-term measurements
+
+**Usage**:
+```bash
+python data_logger.py
+```
+
+**What it does**:
+- Creates timestamped CSV files in `data/` directory
+- Logs all 8 channels plus overflow flags continuously
+- Supports indefinite runtime (Ctrl+C to stop)
+- Provides real-time console display of key channels
+- Flushes data to disk periodically (every 10 measurements)
+- Handles graceful shutdown to prevent data loss
+- Reports total measurements and file size on exit
+
+**CSV Format**:
+```
+Timestamp, Elapsed_Time_s, Ch0_A_singles, Ch1_B_singles, ..., Overflow_Flag
+2026-01-15 10:30:00.123, 0.000, 1234, 1189, ...
+```
+
+**Perfect for**:
+- Long-term stability monitoring
+- Overnight measurements
+- Building large datasets for statistical analysis
+- Continuous environmental monitoring
+
+**Duration**: Continuous (until stopped)
+
+**Configurable parameters**:
+- Measurement interval (default: 1 second)
+- Total duration (default: unlimited)
+- Display update frequency
+
+---
+
+### 7. accidental_analysis.py
+
+**Purpose**: Detailed analysis of true vs accidental coincidences
+
+**Usage**:
+```bash
+python accidental_analysis.py
+```
+
+**What it does**:
+- Collects 30 samples with 2-second integration each
+- Analyzes singles and coincidence rates statistically
+- Calculates expected accidental coincidence rates using:
+  - R_acc = 2 × τ × R_A × R_B (for 2-fold)
+  - R_acc ≈ 3 × τ × R_A × R_B × R_C (for 3-fold)
+- Determines true coincidence rates
+- Computes statistical significance (σ)
+- Provides interpretation and warnings
+- Generates comprehensive analysis plots:
+  - Time series of all rates
+  - Coincidence breakdown (measured/accidental/true)
+  - Distribution analysis
+  - Correlation plots (singles product vs coincidences)
+- Saves results as `accidental_analysis.png`
+
+**Perfect for**:
+- Verifying detector correlation
+- Understanding systematic errors
+- Quantum optics entanglement verification
+- Nuclear correlation measurements
+- Educational demonstrations
+
+**Duration**: ~60 seconds (30 × 2s measurements)
+
+**Interpretation guide**:
+- Accidental fraction < 10%: Excellent, true coincidences dominate
+- Accidental fraction 10-50%: Moderate, correction is important
+- Accidental fraction > 50%: Poor, consider improving setup
+- Significance > 5σ: Highly significant correlation
+- Significance > 3σ: Significant correlation
+- Significance < 3σ: Increase measurement time
 
 ---
 
@@ -103,34 +291,143 @@ cd48.set_trigger_level(1.0)  # Higher threshold to reduce noise
 cd48.set_channel(0, A=1, B=1, C=1, D=1)  # Count A AND B AND C AND D
 ```
 
-## Tips
+## Application-Specific Guides
 
-1. **Start with device_info.py** to verify everything is connected properly
+### For Cosmic Ray Experiments
+1. Start with `calibrate_trigger.py` to find optimal thresholds
+2. Use `cosmic_ray_telescope.py` for data collection
+3. Switch to `data_logger.py` for overnight runs
+4. Analyze correlation with `accidental_analysis.py`
 
-2. **Use simple_counting.py** to find optimal trigger levels and verify signal quality
+### For Quantum Optics
+1. Verify detector signals with `simple_counting.py`
+2. Optimize thresholds with `calibrate_trigger.py`
+3. Use `accidental_analysis.py` to verify entanglement
+4. Long measurements with `data_logger.py`
 
-3. **Use continuous_collection.py** for actual experiments and data analysis
+### For Nuclear/Particle Physics
+1. Check detector response with `device_info.py`
+2. Calibrate discriminators with `calibrate_trigger.py`
+3. Collect correlation data with `continuous_collection.py`
+4. Detailed analysis with `accidental_analysis.py`
 
-4. **Save your data** by modifying the examples to write to CSV:
-   ```python
-   import csv
-   with open('data.csv', 'w', newline='') as f:
-       writer = csv.writer(f)
-       writer.writerow(['Time', 'ChannelA', 'ChannelB', 'Coincidences'])
-       writer.writerows(zip(times, counts_A, counts_B, coincidences))
-   ```
+### For Educational Labs
+1. Start with `device_info.py` for student familiarization
+2. Learn basics with `simple_counting.py`
+3. Demonstrate statistics with `continuous_collection.py`
+4. Teach coincidence corrections with `accidental_analysis.py`
 
-## Common Issues
+---
 
-**Import Error**: Make sure pycd48 is installed:
+## Tips and Best Practices
+
+### Getting Started
+1. **Always start with device_info.py** to verify the connection
+2. **Use calibrate_trigger.py** before any serious measurements
+3. **Test with simple_counting.py** before long runs
+4. **Use data_logger.py** for production measurements
+
+### Optimization
+- **Trigger levels**: Too low → noise, too high → miss events
+- **Measurement intervals**: Shorter → better time resolution but more overhead
+- **Integration time**: Longer → better statistics but less temporal detail
+- **Coincidence window**: Fixed at ~10 ns for CD48
+
+### Data Quality
+- Monitor overflow flags - they indicate counter saturation
+- Check singles rates are stable before trusting coincidence data
+- Use accidental_analysis.py to verify correlation is real
+- Save raw data with data_logger.py for post-processing flexibility
+
+## Common Issues and Solutions
+
+### Import Error
+Make sure pycd48 is installed:
 ```bash
 cd ..
 pip install -e .
 ```
 
-**No device found**: Specify port manually in the example code
+### Device Not Found
+Try specifying the port manually:
+```python
+# Linux
+with CD48(port='/dev/ttyUSB0') as cd48:
+    ...
 
-**Permission denied** (Linux): Add your user to dialout group:
+# Windows
+with CD48(port='COM3') as cd48:
+    ...
+```
+
+### Permission Denied (Linux)
+Add your user to the dialout group:
 ```bash
 sudo usermod -a -G dialout $USER
+# Then log out and log back in
 ```
+
+### No Counts / Zero Data
+- Check trigger level (try calibrate_trigger.py)
+- Verify input signals are connected
+- Check impedance setting (50Ω for most detectors)
+- Ensure detectors are powered
+- Test with LED pulse if available
+
+### Counter Overflow
+- Reduce measurement interval
+- Use faster polling rate
+- Check for very high count rates (>100 kHz)
+- Increase threshold to reduce noise
+
+### Unstable Count Rates
+- Check detector power supply stability
+- Verify detector temperature is stable
+- Look for environmental interference (RF, light leaks)
+- Use longer integration times for averaging
+
+### Unexpected Coincidence Rates
+- Run accidental_analysis.py to check correlation
+- Verify detectors are actually seeing correlated events
+- Check detector alignment for cosmic rays
+- Consider cross-talk between channels
+
+---
+
+## Performance Notes
+
+### Typical Count Rates
+- **Cosmic rays (sea level)**: ~1 muon/cm²/min ≈ 150/min for 10×10 cm detector
+- **Scintillator noise (typical)**: 100-1000 Hz (depends on threshold)
+- **Photomultiplier dark counts**: 100-10,000 Hz (depends on PMT type)
+- **Maximum rate**: ~1 MHz per channel (hardware limit)
+
+### Timing Specifications
+- **Coincidence window**: ~10 ns (fixed, hardware)
+- **USB polling latency**: ~1-50 ms (depends on OS)
+- **Minimum interval**: ~100 ms (recommended)
+- **Maximum counter value**: 4,294,967,295 (32-bit)
+
+### File Sizes (data_logger.py)
+- **1 hour @ 1 Hz**: ~500 KB
+- **24 hours @ 1 Hz**: ~12 MB
+- **1 week @ 1 Hz**: ~85 MB
+
+---
+
+## Further Reading
+
+- [CD48 Product Page](https://www.reddogphysics.com/cd48.html) - Hardware specifications
+- [Main README](../README.md) - Complete API documentation
+- [Red Dog Physics](https://www.reddogphysics.com/) - Manufacturer website
+
+## Contributing
+
+Have an example you'd like to share? Please submit a pull request!
+
+Good examples to add:
+- Muon lifetime measurement analysis
+- Quantum entanglement verification
+- Multi-detector array calibration
+- Advanced statistical analysis
+- Real-time plotting with animation
