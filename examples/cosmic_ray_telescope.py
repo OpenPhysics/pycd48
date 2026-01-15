@@ -149,7 +149,7 @@ def main():
         print()
 
         # Accidental coincidence analysis
-        tau = 10e-9  # 10 ns coincidence window
+        tau = 25e-9  # 25 ns coincidence window
         accidental_AB = 2 * tau * singles_A.mean() * singles_B.mean()
         accidental_ABC = 3 * tau * singles_A.mean() * singles_B.mean() * singles_C.mean()
 
