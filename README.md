@@ -309,12 +309,12 @@ sudo usermod -a -G dialout $USER
 
 - **Input channels**: 4 (A, B, C, D) BNC connectors
 - **Counters**: 8 independently configurable
-  - Counters 0-6: 32-bit (max count: 4,294,967,295)
+  - Counters 0-6: 24-bit (max count: 16,777,215)
   - Counter 7: 16-bit (max count: 65,535)
-- **Coincidence window**: ~25 ns (edge detection based)
-- **Time resolution**: 25 nanoseconds
-- **Trigger threshold**: 0-4.02V (8-bit: 0-255), adjustable
-- **DAC output**: 0-4.02V (8-bit: 0-255), for experiment control
+- **Coincidence window**: ~25 ns (edge detection based, tested <±30 ns)
+- **Time resolution**: Typically 25 nanoseconds
+- **Trigger threshold**: 0-4.08V (8-bit: 0-255), adjustable
+- **DAC output**: 0-4.08V (8-bit: 0-255), for experiment control
 - **Input impedance**: 50Ω or High-Z (selectable)
 - **Interface**: USB virtual COM port (Cypress PSoC5)
 - **Baudrate**: 115200

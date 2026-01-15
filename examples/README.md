@@ -331,7 +331,7 @@ cd48.set_channel(0, A=1, B=1, C=1, D=1)  # Count A AND B AND C AND D
 - **Trigger levels**: Too low → noise, too high → miss events
 - **Measurement intervals**: Shorter → better time resolution but more overhead
 - **Integration time**: Longer → better statistics but less temporal detail
-- **Coincidence window**: Fixed at ~10 ns for CD48
+- **Coincidence window**: Fixed at ~25 ns for CD48
 
 ### Data Quality
 - Monitor overflow flags - they indicate counter saturation
@@ -403,10 +403,10 @@ sudo usermod -a -G dialout $USER
 - **Maximum rate**: ~1 MHz per channel (hardware limit)
 
 ### Timing Specifications
-- **Coincidence window**: ~10 ns (fixed, hardware)
+- **Coincidence window**: ~25 ns (fixed, hardware)
 - **USB polling latency**: ~1-50 ms (depends on OS)
 - **Minimum interval**: ~100 ms (recommended)
-- **Maximum counter value**: 4,294,967,295 (32-bit)
+- **Maximum counter value**: 16,777,215 (24-bit for ch 0-6)
 
 ### File Sizes (data_logger.py)
 - **1 hour @ 1 Hz**: ~500 KB
