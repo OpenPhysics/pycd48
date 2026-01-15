@@ -323,6 +323,30 @@ sudo usermod -a -G dialout $USER
 # Log out and log back in
 ```
 
+### Testing connection on Windows (PuTTY)
+
+To verify the CD48 is working before using Python, you can test with PuTTY:
+
+1. Install PuTTY: `winget install PuTTY.PuTTY`
+2. Open PuTTY and select **Serial** (bottom left)
+3. Set **Serial line** to `COM3` (or your port)
+4. Set **Speed** to `115200`
+5. Click **Open**
+6. Type `v` and press Enter → shows firmware version
+7. Type `H` and press Enter → shows help text
+
+If you see responses, the device is working. Common commands:
+- `v` - Version
+- `H` - Help
+- `C` - Current counts
+- `T` - Test LEDs (all light up for 1 second)
+
+### WSL2 users
+
+USB devices don't pass through to WSL2 automatically. Options:
+1. **Use Windows Python** - Run pycd48 with `py` instead of `python`
+2. **USB/IP passthrough** - Use `usbipd-win` (can be unreliable for serial devices)
+
 ### No data / zero counts
 
 - Check trigger level (try different values)
