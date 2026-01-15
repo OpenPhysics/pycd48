@@ -34,10 +34,13 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=3.0",
+    "pytest-mock>=3.10",
     "black>=22.0",
     "flake8>=4.0",
     "mypy>=0.950",
+    "pylint>=2.15",
     "pre-commit>=2.20",
+    "ipython>=8.0",
 ]
 docs = [
     "sphinx>=4.0",
