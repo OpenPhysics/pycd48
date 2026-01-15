@@ -5,7 +5,7 @@ This module provides a Python interface for the Red Dog Physics CD48
 Coincidence Counter using PySerial for USB communication.
 """
 
-from typing import Optional, Union, Dict, List, cast, overload, Literal, TypedDict, Type
+from typing import Optional, Union, List, cast, overload, Literal, TypedDict, Type
 from types import TracebackType
 import serial
 import serial.tools.list_ports
@@ -14,6 +14,7 @@ import time
 
 class CountsDict(TypedDict):
     """Type definition for parsed counts data."""
+
     counts: List[int]
     overflow: int
 
@@ -21,7 +22,9 @@ class CountsDict(TypedDict):
 class CD48:
     """Interface for Red Dog Physics CD48 Coincidence Counter"""
 
-    def __init__(self, port: Optional[str] = None, baudrate: int = 115200, timeout: float = 1) -> None:
+    def __init__(
+        self, port: Optional[str] = None, baudrate: int = 115200, timeout: float = 1
+    ) -> None:
         """
         Initialize connection to CD48
 
@@ -47,14 +50,14 @@ class CD48:
         ports = serial.tools.list_ports.comports()
         for port in ports:
             # CD48 uses Cypress PSoC5 chip - look for relevant identifiers
-            if 'USB' in port.description or 'Serial' in port.description:
+            if "USB" in port.description or "Serial" in port.description:
                 print(f"Found potential device: {port.device} - {port.description}")
                 return cast(str, port.device)
         raise ValueError("Could not find CD48. Please specify port manually.")
 
     def _send_command(self, command: str) -> str:
         """Send command and return response"""
-        self.ser.write((command + '\r').encode())
+        self.ser.write((command + "\r").encode())
         time.sleep(0.05)  # Small delay for device to respond
         response: str = self.ser.read_all().decode().strip()
         return response
@@ -79,15 +82,15 @@ class CD48:
         str or dict : Raw response string or parsed dict with counts and overflow
         """
         if human_readable:
-            return self._send_command('C')
+            return self._send_command("C")
         else:
-            response = self._send_command('c')
+            response = self._send_command("c")
             # Parse space-delimited response: 8 counts + overflow status
             parts = response.split()
             if len(parts) >= 9:
                 counts = [int(x) for x in parts[:8]]
                 overflow = int(parts[8])
-                return {'counts': counts, 'overflow': overflow}
+                return {"counts": counts, "overflow": overflow}
             return response
 
     def clear_counts(self) -> None:
@@ -109,7 +112,7 @@ class CD48:
         --------
         set_channel(4, A=1, B=1, C=0, D=0)  # Counter 4 counts A-B coincidences
         """
-        command = f'S{channel}{A}{B}{C}{D}'
+        command = f"S{channel}{A}{B}{C}{D}"
         return self._send_command(command)
 
     def set_trigger_level(self, voltage: float) -> str:
@@ -125,15 +128,15 @@ class CD48:
         byte_val = int((voltage / 4.08) * 255)
         # Per manual: 0-255 maps to 0-4.08V
         byte_val = max(0, min(255, byte_val))  # Clamp to valid range
-        return self._send_command(f'L{byte_val}')
+        return self._send_command(f"L{byte_val}")
 
     def set_impedance_50ohm(self) -> str:
         """Set input impedance to 50 Ohms"""
-        return self._send_command('z')
+        return self._send_command("z")
 
     def set_impedance_highz(self) -> str:
         """Set input impedance to high-Z"""
-        return self._send_command('Z')
+        return self._send_command("Z")
 
     def set_repeat(self, interval_ms: int) -> str:
         """
@@ -145,18 +148,18 @@ class CD48:
             Reporting interval in milliseconds (100-65535)
         """
         interval_ms = max(100, min(65535, interval_ms))
-        return self._send_command(f'r{interval_ms}')
+        return self._send_command(f"r{interval_ms}")
 
     def toggle_repeat(self) -> str:
         """Toggle automatic repeat reporting on/off"""
-        return self._send_command('R')
+        return self._send_command("R")
 
     def get_settings(self, human_readable: bool = True) -> str:
         """Get all current settings"""
         if human_readable:
-            return self._send_command('P')
+            return self._send_command("P")
         else:
-            return self._send_command('p')
+            return self._send_command("p")
 
     def get_overflow(self) -> Union[int, str]:
         """
@@ -166,10 +169,10 @@ class CD48:
         --------
         int : 8-bit overflow flag (bit n indicates counter n overflowed)
         """
-        response = self._send_command('E')
+        response = self._send_command("E")
         try:
             return int(response.strip())
-        except:
+        except ValueError:
             return response
 
     def set_dac_voltage(self, voltage: float) -> str:
@@ -184,26 +187,31 @@ class CD48:
         byte_val = int((voltage / 4.08) * 255)
         # Per manual: 0-255 maps to 0-4.08V
         byte_val = max(0, min(255, byte_val))
-        return self._send_command(f'V{byte_val}')
+        return self._send_command(f"V{byte_val}")
 
     def get_version(self) -> str:
         """Get firmware version"""
-        return self._send_command('v')
+        return self._send_command("v")
 
     def test_leds(self) -> str:
         """Test all LEDs (turns on for 1 second)"""
-        return self._send_command('T')
+        return self._send_command("T")
 
     def help(self) -> str:
         """Get built-in help"""
-        return self._send_command('H')
+        return self._send_command("H")
 
     def close(self) -> None:
         """Close serial connection"""
         self.ser.close()
 
-    def __enter__(self) -> 'CD48':
+    def __enter__(self) -> "CD48":
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.close()
