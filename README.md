@@ -358,7 +358,7 @@ The repository includes a `winpy` helper script that wraps Windows Python for co
 ./winpy your_script.py
 ```
 
-**Note:** USB/IP passthrough (`usbipd-win`) does not work reliably with the CD48. The Cypress CDC ACM serial interface experiences connection reset errors over USB/IP, causing timeouts during serial communication. Use Windows Python instead.
+**Why not USB/IP?** While `usbipd-win` can attach USB devices to WSL2, it does not work reliably with the CD48. The Cypress CDC ACM serial interface experiences connection reset errors when accessed from WSL2 via USB/IP, causing timeouts during serial communication. Windows Python avoids this by communicating directly with the COM port.
 
 ### No data / zero counts
 
