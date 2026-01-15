@@ -31,7 +31,7 @@ def main() -> None:
 
         # Collection parameters
         duration = 60  # seconds
-        interval = 1   # seconds
+        interval = 1  # seconds
 
         times = []
         counts_A = []
@@ -52,11 +52,13 @@ def main() -> None:
 
             current_time = time.time() - start_time
             times.append(current_time)
-            counts_A.append(data['counts'][0])
-            counts_B.append(data['counts'][1])
-            coincidences.append(data['counts'][4])
+            counts_A.append(data["counts"][0])
+            counts_B.append(data["counts"][1])
+            coincidences.append(data["counts"][4])
 
-            print(f"{current_time:6.1f}  {counts_A[-1]:6d}  {counts_B[-1]:6d}  {coincidences[-1]:6d}")
+            print(
+                f"{current_time:6.1f}  {counts_A[-1]:6d}  {counts_B[-1]:6d}  {coincidences[-1]:6d}"
+            )
 
         # Convert to numpy arrays for analysis
         times = np.array(times)
@@ -88,29 +90,29 @@ def main() -> None:
 
         # Time series plot
         plt.subplot(2, 1, 1)
-        plt.plot(times, counts_A, 'o-', label='Channel A', alpha=0.7)
-        plt.plot(times, counts_B, 's-', label='Channel B', alpha=0.7)
-        plt.plot(times, coincidences, '^-', label='Coincidences AB', alpha=0.7)
-        plt.xlabel('Time (s)')
-        plt.ylabel('Counts per second')
-        plt.title('CD48 Count Rates Over Time')
+        plt.plot(times, counts_A, "o-", label="Channel A", alpha=0.7)
+        plt.plot(times, counts_B, "s-", label="Channel B", alpha=0.7)
+        plt.plot(times, coincidences, "^-", label="Coincidences AB", alpha=0.7)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Counts per second")
+        plt.title("CD48 Count Rates Over Time")
         plt.legend()
         plt.grid(True, alpha=0.3)
 
         # Histogram plot
         plt.subplot(2, 1, 2)
         bins = 20
-        plt.hist(counts_A, bins=bins, alpha=0.5, label='Channel A')
-        plt.hist(counts_B, bins=bins, alpha=0.5, label='Channel B')
-        plt.hist(coincidences, bins=bins, alpha=0.5, label='Coincidences AB')
-        plt.xlabel('Counts per interval')
-        plt.ylabel('Frequency')
-        plt.title('Distribution of Count Rates')
+        plt.hist(counts_A, bins=bins, alpha=0.5, label="Channel A")
+        plt.hist(counts_B, bins=bins, alpha=0.5, label="Channel B")
+        plt.hist(coincidences, bins=bins, alpha=0.5, label="Coincidences AB")
+        plt.xlabel("Counts per interval")
+        plt.ylabel("Frequency")
+        plt.title("Distribution of Count Rates")
         plt.legend()
         plt.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig('cd48_data.png', dpi=150)
+        plt.savefig("cd48_data.png", dpi=150)
         print("Plot saved as 'cd48_data.png'")
         plt.show()
 

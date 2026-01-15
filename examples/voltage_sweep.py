@@ -21,7 +21,9 @@ import matplotlib.pyplot as plt
 from pycd48 import CD48
 
 
-def sweep_voltage(cd48: CD48, voltage_range: npt.NDArray[np.floating], measurement_time: float = 5) -> Dict[str, npt.NDArray[np.floating]]:
+def sweep_voltage(
+    cd48: CD48, voltage_range: npt.NDArray[np.floating], measurement_time: float = 5
+) -> Dict[str, npt.NDArray[np.floating]]:
     """
     Sweep DAC voltage and measure count rates.
 
@@ -64,19 +66,21 @@ def sweep_voltage(cd48: CD48, voltage_range: npt.NDArray[np.floating], measureme
 
         # Store data
         voltages.append(voltage)
-        counts_A.append(data['counts'][0])
-        counts_B.append(data['counts'][1])
-        coincidences.append(data['counts'][4])
+        counts_A.append(data["counts"][0])
+        counts_B.append(data["counts"][1])
+        coincidences.append(data["counts"][4])
 
         # Display progress
-        print(f"{voltage:>6.2f}       {data['counts'][0]:<10} "
-              f"{data['counts'][1]:<10} {data['counts'][4]:<10}")
+        print(
+            f"{voltage:>6.2f}       {data['counts'][0]:<10} "
+            f"{data['counts'][1]:<10} {data['counts'][4]:<10}"
+        )
 
     return {
-        'voltages': np.array(voltages),
-        'counts_A': np.array(counts_A),
-        'counts_B': np.array(counts_B),
-        'coincidences': np.array(coincidences)
+        "voltages": np.array(voltages),
+        "counts_A": np.array(counts_A),
+        "counts_B": np.array(counts_B),
+        "coincidences": np.array(coincidences),
     }
 
 
@@ -130,13 +134,13 @@ def main() -> None:
         cd48.set_dac_voltage(0.0)
 
         # Calculate rates (counts per second)
-        rate_A = results['counts_A'] / measurement_time
-        rate_B = results['counts_B'] / measurement_time
-        rate_coinc = results['coincidences'] / measurement_time
+        rate_A = results["counts_A"] / measurement_time
+        rate_B = results["counts_B"] / measurement_time
+        rate_coinc = results["coincidences"] / measurement_time
 
         # Find optimal voltage (maximum coincidence rate)
         max_idx = np.argmax(rate_coinc)
-        optimal_voltage = results['voltages'][max_idx]
+        optimal_voltage = results["voltages"][max_idx]
         max_coinc_rate = rate_coinc[max_idx]
 
         print()
@@ -156,27 +160,36 @@ def main() -> None:
 
         # Plot 1: Count rates vs voltage
         ax1 = axes[0, 0]
-        ax1.plot(results['voltages'], rate_A, 'o-', label='Channel A', linewidth=2)
-        ax1.plot(results['voltages'], rate_B, 's-', label='Channel B', linewidth=2)
-        ax1.plot(results['voltages'], rate_coinc, '^-', label='A-B Coinc', linewidth=2)
-        ax1.axvline(optimal_voltage, color='red', linestyle='--', alpha=0.5,
-                   label=f'Optimal: {optimal_voltage:.2f}V')
-        ax1.set_xlabel('DAC Voltage (V)', fontsize=12)
-        ax1.set_ylabel('Count Rate (Hz)', fontsize=12)
-        ax1.set_title('Count Rates vs DAC Voltage', fontsize=14, fontweight='bold')
+        ax1.plot(results["voltages"], rate_A, "o-", label="Channel A", linewidth=2)
+        ax1.plot(results["voltages"], rate_B, "s-", label="Channel B", linewidth=2)
+        ax1.plot(results["voltages"], rate_coinc, "^-", label="A-B Coinc", linewidth=2)
+        ax1.axvline(
+            optimal_voltage,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Optimal: {optimal_voltage:.2f}V",
+        )
+        ax1.set_xlabel("DAC Voltage (V)", fontsize=12)
+        ax1.set_ylabel("Count Rate (Hz)", fontsize=12)
+        ax1.set_title("Count Rates vs DAC Voltage", fontsize=14, fontweight="bold")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
         # Plot 2: Coincidence rate (zoomed)
         ax2 = axes[0, 1]
-        ax2.plot(results['voltages'], rate_coinc, 'o-', linewidth=2, markersize=8,
-                color='green')
-        ax2.axvline(optimal_voltage, color='red', linestyle='--', alpha=0.5)
-        ax2.plot(optimal_voltage, max_coinc_rate, 'r*', markersize=20,
-                label=f'Max: {max_coinc_rate:.1f} Hz')
-        ax2.set_xlabel('DAC Voltage (V)', fontsize=12)
-        ax2.set_ylabel('Coincidence Rate (Hz)', fontsize=12)
-        ax2.set_title('Coincidence Rate Optimization', fontsize=14, fontweight='bold')
+        ax2.plot(results["voltages"], rate_coinc, "o-", linewidth=2, markersize=8, color="green")
+        ax2.axvline(optimal_voltage, color="red", linestyle="--", alpha=0.5)
+        ax2.plot(
+            optimal_voltage,
+            max_coinc_rate,
+            "r*",
+            markersize=20,
+            label=f"Max: {max_coinc_rate:.1f} Hz",
+        )
+        ax2.set_xlabel("DAC Voltage (V)", fontsize=12)
+        ax2.set_ylabel("Coincidence Rate (Hz)", fontsize=12)
+        ax2.set_title("Coincidence Rate Optimization", fontsize=14, fontweight="bold")
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
@@ -187,28 +200,34 @@ def main() -> None:
         sn_ratio = rate_coinc / np.sqrt(rate_A * rate_B + 1)
         max_sn_idx = np.argmax(sn_ratio)
 
-        ax3.plot(results['voltages'], sn_ratio, 'o-', linewidth=2, color='purple')
-        ax3.axvline(results['voltages'][max_sn_idx], color='red',
-                   linestyle='--', alpha=0.5,
-                   label=f'Best S/N: {results["voltages"][max_sn_idx]:.2f}V')
-        ax3.set_xlabel('DAC Voltage (V)', fontsize=12)
-        ax3.set_ylabel('Figure of Merit (a.u.)', fontsize=12)
-        ax3.set_title('Signal-to-Noise Estimate', fontsize=14, fontweight='bold')
+        ax3.plot(results["voltages"], sn_ratio, "o-", linewidth=2, color="purple")
+        ax3.axvline(
+            results["voltages"][max_sn_idx],
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f'Best S/N: {results["voltages"][max_sn_idx]:.2f}V',
+        )
+        ax3.set_xlabel("DAC Voltage (V)", fontsize=12)
+        ax3.set_ylabel("Figure of Merit (a.u.)", fontsize=12)
+        ax3.set_title("Signal-to-Noise Estimate", fontsize=14, fontweight="bold")
         ax3.legend()
         ax3.grid(True, alpha=0.3)
 
         # Plot 4: Total counts
         ax4 = axes[1, 1]
-        ax4.bar(results['voltages'], results['coincidences'],
-               width=0.15, alpha=0.7, edgecolor='black')
-        ax4.set_xlabel('DAC Voltage (V)', fontsize=12)
-        ax4.set_ylabel('Total Coincidences', fontsize=12)
-        ax4.set_title(f'Total Coincidences ({measurement_time}s integration)',
-                     fontsize=14, fontweight='bold')
-        ax4.grid(True, alpha=0.3, axis='y')
+        ax4.bar(
+            results["voltages"], results["coincidences"], width=0.15, alpha=0.7, edgecolor="black"
+        )
+        ax4.set_xlabel("DAC Voltage (V)", fontsize=12)
+        ax4.set_ylabel("Total Coincidences", fontsize=12)
+        ax4.set_title(
+            f"Total Coincidences ({measurement_time}s integration)", fontsize=14, fontweight="bold"
+        )
+        ax4.grid(True, alpha=0.3, axis="y")
 
         plt.tight_layout()
-        plt.savefig('voltage_sweep.png', dpi=150)
+        plt.savefig("voltage_sweep.png", dpi=150)
         print("Plot saved as 'voltage_sweep.png'")
         plt.show()
 

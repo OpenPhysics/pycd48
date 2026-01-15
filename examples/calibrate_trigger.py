@@ -18,7 +18,12 @@ import matplotlib.pyplot as plt
 from pycd48 import CD48
 
 
-def scan_trigger_levels(cd48: CD48, channel_config: Dict[int, Tuple[int, int, int, int]], voltage_range: npt.NDArray[np.floating], measurement_time: float = 5) -> Tuple[List[float], Dict[int, List[float]]]:
+def scan_trigger_levels(
+    cd48: CD48,
+    channel_config: Dict[int, Tuple[int, int, int, int]],
+    voltage_range: npt.NDArray[np.floating],
+    measurement_time: float = 5,
+) -> Tuple[List[float], Dict[int, List[float]]]:
     """
     Scan trigger levels and measure count rates.
 
@@ -44,9 +49,9 @@ def scan_trigger_levels(cd48: CD48, channel_config: Dict[int, Tuple[int, int, in
     print(f"Scanning {len(voltage_range)} voltage levels...")
     print(f"Integration time: {measurement_time}s per level")
     print()
-    print(f"{'Voltage (V)':<12} ", end='')
+    print(f"{'Voltage (V)':<12} ", end="")
     for ch in sorted(channel_config.keys()):
-        print(f"Ch{ch} (Hz)  ", end='')
+        print(f"Ch{ch} (Hz)  ", end="")
     print()
     print("-" * 60)
 
@@ -60,16 +65,16 @@ def scan_trigger_levels(cd48: CD48, channel_config: Dict[int, Tuple[int, int, in
         time.sleep(measurement_time)
 
         data = cd48.get_counts(human_readable=False)
-        counts = data['counts']
+        counts = data["counts"]
 
         # Store results
         voltages.append(voltage)
-        print(f"{voltage:>6.3f}       ", end='')
+        print(f"{voltage:>6.3f}       ", end="")
 
         for ch in sorted(channel_config.keys()):
             rate = counts[ch] / measurement_time
             results[ch].append(rate)
-            print(f"{rate:>8.1f} ", end='')
+            print(f"{rate:>8.1f} ", end="")
         print()
 
     return voltages, results
@@ -102,8 +107,8 @@ def main() -> None:
 
         # Define voltage scan range
         # Scan from high to low to avoid triggering on noise initially
-        voltage_min = 0.1   # V
-        voltage_max = 2.0   # V
+        voltage_min = 0.1  # V
+        voltage_max = 2.0  # V
         voltage_step = 0.1  # V
 
         voltage_range = np.arange(voltage_max, voltage_min - voltage_step, -voltage_step)
@@ -163,52 +168,74 @@ def main() -> None:
 
         # Plot 1: Count rate vs trigger voltage
         ax1 = axes[0]
-        channel_names = ['Channel A', 'Channel B', 'Channel C', 'Channel D']
-        colors = ['blue', 'orange', 'green', 'red']
+        channel_names = ["Channel A", "Channel B", "Channel C", "Channel D"]
+        colors = ["blue", "orange", "green", "red"]
 
         for ch in sorted(channel_config.keys()):
-            ax1.plot(voltages, results[ch], 'o-', label=channel_names[ch],
-                    color=colors[ch], alpha=0.7, linewidth=2, markersize=6)
+            ax1.plot(
+                voltages,
+                results[ch],
+                "o-",
+                label=channel_names[ch],
+                color=colors[ch],
+                alpha=0.7,
+                linewidth=2,
+                markersize=6,
+            )
 
             # Mark optimal threshold
             if ch in optimal_thresholds:
                 opt_v = optimal_thresholds[ch]
                 opt_idx = np.argmin(np.abs(voltages - opt_v))
-                ax1.axvline(x=opt_v, color=colors[ch], linestyle='--', alpha=0.3)
-                ax1.plot(opt_v, results[ch][opt_idx], '*',
-                        color=colors[ch], markersize=15,
-                        markeredgecolor='black', markeredgewidth=1)
+                ax1.axvline(x=opt_v, color=colors[ch], linestyle="--", alpha=0.3)
+                ax1.plot(
+                    opt_v,
+                    results[ch][opt_idx],
+                    "*",
+                    color=colors[ch],
+                    markersize=15,
+                    markeredgecolor="black",
+                    markeredgewidth=1,
+                )
 
-        ax1.set_xlabel('Trigger Voltage (V)', fontsize=12)
-        ax1.set_ylabel('Count Rate (Hz)', fontsize=12)
-        ax1.set_title('Count Rate vs Trigger Threshold', fontsize=14, fontweight='bold')
+        ax1.set_xlabel("Trigger Voltage (V)", fontsize=12)
+        ax1.set_ylabel("Count Rate (Hz)", fontsize=12)
+        ax1.set_title("Count Rate vs Trigger Threshold", fontsize=14, fontweight="bold")
         ax1.legend(fontsize=10)
         ax1.grid(True, alpha=0.3)
-        ax1.set_yscale('log')  # Log scale often shows noise floor better
+        ax1.set_yscale("log")  # Log scale often shows noise floor better
 
         # Plot 2: Normalized rates (easier to compare channels)
         ax2 = axes[1]
         for ch in sorted(channel_config.keys()):
             # Normalize to maximum
             normalized = results[ch] / results[ch].max() if results[ch].max() > 0 else results[ch]
-            ax2.plot(voltages, normalized, 'o-', label=channel_names[ch],
-                    color=colors[ch], alpha=0.7, linewidth=2, markersize=6)
+            ax2.plot(
+                voltages,
+                normalized,
+                "o-",
+                label=channel_names[ch],
+                color=colors[ch],
+                alpha=0.7,
+                linewidth=2,
+                markersize=6,
+            )
 
             # Mark optimal threshold
             if ch in optimal_thresholds:
                 opt_v = optimal_thresholds[ch]
                 opt_idx = np.argmin(np.abs(voltages - opt_v))
-                ax2.axvline(x=opt_v, color=colors[ch], linestyle='--', alpha=0.3)
+                ax2.axvline(x=opt_v, color=colors[ch], linestyle="--", alpha=0.3)
 
-        ax2.set_xlabel('Trigger Voltage (V)', fontsize=12)
-        ax2.set_ylabel('Normalized Count Rate', fontsize=12)
-        ax2.set_title('Normalized Count Rate vs Trigger Threshold', fontsize=14, fontweight='bold')
+        ax2.set_xlabel("Trigger Voltage (V)", fontsize=12)
+        ax2.set_ylabel("Normalized Count Rate", fontsize=12)
+        ax2.set_title("Normalized Count Rate vs Trigger Threshold", fontsize=14, fontweight="bold")
         ax2.legend(fontsize=10)
         ax2.grid(True, alpha=0.3)
         ax2.set_ylim([0, 1.1])
 
         plt.tight_layout()
-        plt.savefig('trigger_calibration.png', dpi=150)
+        plt.savefig("trigger_calibration.png", dpi=150)
         print("Plot saved as 'trigger_calibration.png'")
         plt.show()
 

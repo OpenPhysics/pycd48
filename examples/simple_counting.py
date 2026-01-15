@@ -53,8 +53,8 @@ def main() -> None:
 
         # Read results
         data = cd48.get_counts(human_readable=False)
-        counts = data['counts']
-        overflow = data['overflow']
+        counts = data["counts"]
+        overflow = data["overflow"]
 
         # Display results
         print(f"\nResults after {duration} seconds:")

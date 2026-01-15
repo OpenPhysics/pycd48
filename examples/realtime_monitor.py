@@ -48,7 +48,9 @@ def main() -> None:
 
         print("Real-time monitoring started (Ctrl+C to stop)")
         print()
-        print(f"{'Time':<12} {'Ch A':<10} {'Ch B':<10} {'A-B':<10} {'Rate A (Hz)':<12} {'Rate B (Hz)':<12}")
+        print(
+            f"{'Time':<12} {'Ch A':<10} {'Ch B':<10} {'A-B':<10} {'Rate A (Hz)':<12} {'Rate B (Hz)':<12}"
+        )
         print("-" * 80)
 
         try:
@@ -60,7 +62,7 @@ def main() -> None:
                 # We just need to read it from the serial buffer
                 line = cd48.ser.readline().decode().strip()
 
-                if line and not line.startswith('Repeat'):
+                if line and not line.startswith("Repeat"):
                     # Parse the automatic output
                     # The device sends count data automatically
                     try:
@@ -71,19 +73,23 @@ def main() -> None:
                         elapsed = time.time() - start_time
 
                         # Calculate rates
-                        rate_A = data['counts'][0] / (interval_ms / 1000)
-                        rate_B = data['counts'][1] / (interval_ms / 1000)
+                        rate_A = data["counts"][0] / (interval_ms / 1000)
+                        rate_B = data["counts"][1] / (interval_ms / 1000)
 
                         # Display with timestamp
                         time_str = f"{elapsed:>8.1f}s"
-                        print(f"{time_str:<12} {data['counts'][0]:<10} {data['counts'][1]:<10} "
-                              f"{data['counts'][4]:<10} {rate_A:<12.1f} {rate_B:<12.1f}")
+                        print(
+                            f"{time_str:<12} {data['counts'][0]:<10} {data['counts'][1]:<10} "
+                            f"{data['counts'][4]:<10} {rate_A:<12.1f} {rate_B:<12.1f}"
+                        )
 
                         count += 1
 
                         # Show overflow warning if needed
-                        if data['overflow']:
-                            print(f"  ⚠️  WARNING: Counter overflow detected! (0x{data['overflow']:02X})")
+                        if data["overflow"]:
+                            print(
+                                f"  ⚠️  WARNING: Counter overflow detected! (0x{data['overflow']:02X})"
+                            )
 
                     except Exception as e:
                         # Just skip malformed lines

@@ -24,7 +24,7 @@ from pycd48 import CD48
 class DataLogger:
     """CD48 data logger with CSV output"""
 
-    def __init__(self, cd48: CD48, output_dir: str = 'data', prefix: str = 'cd48') -> None:
+    def __init__(self, cd48: CD48, output_dir: str = "data", prefix: str = "cd48") -> None:
         """
         Initialize data logger.
 
@@ -50,34 +50,38 @@ class DataLogger:
 
     def _signal_handler(self, sig: int, frame: Optional[FrameType]) -> None:
         """Handle Ctrl+C gracefully"""
-        print('\n\nShutdown signal received. Stopping data collection...')
+        print("\n\nShutdown signal received. Stopping data collection...")
         self.running = False
 
     def _create_csv_file(self) -> Path:
         """Create a new CSV file with timestamp"""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = self.output_dir / f'{self.prefix}_{timestamp}.csv'
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = self.output_dir / f"{self.prefix}_{timestamp}.csv"
 
         # Create CSV file with header
-        with open(filename, 'w', newline='') as f:
+        with open(filename, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                'Timestamp',
-                'Elapsed_Time_s',
-                'Ch0_A_singles',
-                'Ch1_B_singles',
-                'Ch2_C_singles',
-                'Ch3_D_singles',
-                'Ch4_AB_coinc',
-                'Ch5_AC_coinc',
-                'Ch6_BC_coinc',
-                'Ch7_ABC_coinc',
-                'Overflow_Flag'
-            ])
+            writer.writerow(
+                [
+                    "Timestamp",
+                    "Elapsed_Time_s",
+                    "Ch0_A_singles",
+                    "Ch1_B_singles",
+                    "Ch2_C_singles",
+                    "Ch3_D_singles",
+                    "Ch4_AB_coinc",
+                    "Ch5_AC_coinc",
+                    "Ch6_BC_coinc",
+                    "Ch7_ABC_coinc",
+                    "Overflow_Flag",
+                ]
+            )
 
         return filename
 
-    def log_data(self, interval: float = 1.0, duration: Optional[float] = None, display_interval: int = 10) -> None:
+    def log_data(
+        self, interval: float = 1.0, duration: Optional[float] = None, display_interval: int = 10
+    ) -> None:
         """
         Start logging data to CSV file.
 
@@ -105,7 +109,7 @@ class DataLogger:
         measurement_count = 0
 
         try:
-            with open(filename, 'a', newline='') as f:
+            with open(filename, "a", newline="") as f:
                 writer = csv.writer(f)
 
                 while self.running:
@@ -121,27 +125,29 @@ class DataLogger:
 
                     # Get data
                     data = self.cd48.get_counts(human_readable=False)
-                    counts = data['counts']
-                    overflow = data['overflow']
+                    counts = data["counts"]
+                    overflow = data["overflow"]
 
                     # Record timestamp
                     now = datetime.now()
                     elapsed = time.time() - start_time
 
                     # Write to CSV
-                    writer.writerow([
-                        now.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],  # Timestamp
-                        f'{elapsed:.3f}',  # Elapsed time
-                        counts[0],  # Ch0
-                        counts[1],  # Ch1
-                        counts[2],  # Ch2
-                        counts[3],  # Ch3
-                        counts[4],  # Ch4
-                        counts[5],  # Ch5
-                        counts[6],  # Ch6
-                        counts[7],  # Ch7
-                        overflow    # Overflow flag
-                    ])
+                    writer.writerow(
+                        [
+                            now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],  # Timestamp
+                            f"{elapsed:.3f}",  # Elapsed time
+                            counts[0],  # Ch0
+                            counts[1],  # Ch1
+                            counts[2],  # Ch2
+                            counts[3],  # Ch3
+                            counts[4],  # Ch4
+                            counts[5],  # Ch5
+                            counts[6],  # Ch6
+                            counts[7],  # Ch7
+                            overflow,  # Overflow flag
+                        ]
+                    )
 
                     measurement_count += 1
 
@@ -155,12 +161,14 @@ class DataLogger:
                         if overflow:
                             status = f"OVERFLOW:0x{overflow:02X}"
 
-                        print(f"{now.strftime('%H:%M:%S'):<12} "
-                              f"{elapsed:>8.1f}s  "
-                              f"{counts[0]:>7d} "
-                              f"{counts[1]:>7d} "
-                              f"{counts[4]:>7d} "
-                              f"{status}")
+                        print(
+                            f"{now.strftime('%H:%M:%S'):<12} "
+                            f"{elapsed:>8.1f}s  "
+                            f"{counts[0]:>7d} "
+                            f"{counts[1]:>7d} "
+                            f"{counts[4]:>7d} "
+                            f"{status}"
+                        )
 
         except Exception as e:
             print(f"\nError during logging: {e}")
@@ -221,17 +229,13 @@ def main() -> None:
         print()
 
         # Create logger and start
-        logger = DataLogger(cd48, output_dir='data', prefix='cd48_log')
+        logger = DataLogger(cd48, output_dir="data", prefix="cd48_log")
 
         print("Starting data collection...")
         print("Press Ctrl+C to stop")
         print()
 
-        logger.log_data(
-            interval=INTERVAL,
-            duration=DURATION,
-            display_interval=DISPLAY_INTERVAL
-        )
+        logger.log_data(interval=INTERVAL, duration=DURATION, display_interval=DISPLAY_INTERVAL)
 
 
 if __name__ == "__main__":

@@ -43,7 +43,9 @@ def check_overflow(cd48: CD48) -> Tuple[int, List[int]]:
     return overflow_flag, overflowed_counters
 
 
-def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int = 1000000) -> Dict[str, Union[List[float], List[List[int]], List[int]]]:
+def adaptive_measurement(
+    cd48: CD48, target_duration: float = 60, max_count: int = 1000000
+) -> Dict[str, Union[List[float], List[List[int]], List[int]]]:
     """
     Perform measurement with automatic interval adjustment to prevent overflow.
 
@@ -68,12 +70,7 @@ def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int
     interval = 5.0  # Start with 5 second intervals
     start_time = time.time()
 
-    all_data = {
-        'times': [],
-        'intervals': [],
-        'counts': [[] for _ in range(8)],
-        'overflows': []
-    }
+    all_data = {"times": [], "intervals": [], "counts": [[] for _ in range(8)], "overflows": []}
 
     print(f"{'Time(s)':<8} {'Interval(s)':<12} {'Ch0':<10} {'Ch1':<10} {'Overflow':<10}")
     print("-" * 60)
@@ -91,16 +88,18 @@ def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int
         overflow_flag, overflowed = check_overflow(cd48)
 
         # Store data
-        all_data['times'].append(elapsed)
-        all_data['intervals'].append(interval)
+        all_data["times"].append(elapsed)
+        all_data["intervals"].append(interval)
         for i in range(8):
-            all_data['counts'][i].append(data['counts'][i])
-        all_data['overflows'].append(overflow_flag)
+            all_data["counts"][i].append(data["counts"][i])
+        all_data["overflows"].append(overflow_flag)
 
         # Display
         overflow_str = f"0x{overflow_flag:02X}" if overflow_flag else "OK"
-        print(f"{elapsed:<8.1f} {interval:<12.1f} {data['counts'][0]:<10} "
-              f"{data['counts'][1]:<10} {overflow_str:<10}")
+        print(
+            f"{elapsed:<8.1f} {interval:<12.1f} {data['counts'][0]:<10} "
+            f"{data['counts'][1]:<10} {overflow_str:<10}"
+        )
 
         if overflowed:
             print(f"  ⚠️  Overflow detected on counters: {overflowed}")
@@ -109,7 +108,7 @@ def adaptive_measurement(cd48: CD48, target_duration: float = 60, max_count: int
             print(f"  → Reducing interval to {interval}s")
         else:
             # Check if counts are getting too high
-            max_count_this_interval = max(data['counts'][:-1])  # Exclude ch7 (16-bit)
+            max_count_this_interval = max(data["counts"][:-1])  # Exclude ch7 (16-bit)
 
             # If we're approaching the limit, reduce interval
             if max_count_this_interval > max_count:
@@ -190,7 +189,7 @@ def main() -> None:
         print("=" * 70)
         print()
 
-        total_overflows = sum(1 for x in data['overflows'] if x > 0)
+        total_overflows = sum(1 for x in data["overflows"] if x > 0)
         print(f"Total measurements: {len(data['times'])}")
         print(f"Overflow events: {total_overflows}")
         print(f"Interval range: {min(data['intervals']):.1f}s - {max(data['intervals']):.1f}s")
@@ -199,12 +198,14 @@ def main() -> None:
         # Calculate total counts
         print("Total Counts Collected:")
         for i in range(8):
-            total = sum(data['counts'][i])
+            total = sum(data["counts"][i])
             counter_type = "24-bit" if i < 7 else "16-bit"
             max_val = 16777215 if i < 7 else 65535
             utilization = (total / max_val) * 100 if total > 0 else 0
-            print(f"  Counter {i} ({counter_type}): {total:>12,} "
-                  f"(max utilization: {utilization:.1f}%)")
+            print(
+                f"  Counter {i} ({counter_type}): {total:>12,} "
+                f"(max utilization: {utilization:.1f}%)"
+            )
         print()
 
         print("=" * 70)
