@@ -5,7 +5,13 @@ A simple library for controlling the Red Dog Physics CD48 Coincidence Counter
 via USB serial interface.
 """
 
-from .cd48 import CD48
+from importlib.metadata import version, PackageNotFoundError
 
-__version__ = "0.1.0"
-__all__ = ["CD48"]
+from .cd48 import CD48, CD48Error, CD48ParseError, CD48DeviceNotFoundError
+
+try:
+    __version__ = version("pycd48")
+except PackageNotFoundError:
+    __version__ = "0.1.0"  # Fallback for development
+
+__all__ = ["CD48", "CD48Error", "CD48ParseError", "CD48DeviceNotFoundError", "__version__"]

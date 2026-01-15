@@ -5,11 +5,30 @@ This module provides a Python interface for the Red Dog Physics CD48
 Coincidence Counter using PySerial for USB communication.
 """
 
-from typing import Optional, Union, List, cast, overload, Literal, TypedDict, Type
+from typing import Optional, List, overload, Literal, TypedDict, Type
 from types import TracebackType
+import logging
 import serial
 import serial.tools.list_ports
 import time
+
+
+class CD48Error(Exception):
+    """Base exception for CD48 errors."""
+
+    pass
+
+
+class CD48ParseError(CD48Error):
+    """Raised when device response cannot be parsed."""
+
+    pass
+
+
+class CD48DeviceNotFoundError(CD48Error):
+    """Raised when CD48 device cannot be found."""
+
+    pass
 
 
 class CountsDict(TypedDict):
@@ -22,8 +41,22 @@ class CountsDict(TypedDict):
 class CD48:
     """Interface for Red Dog Physics CD48 Coincidence Counter"""
 
+    # Device initialization delay in seconds. The CD48 uses a Cypress PSoC5 chip
+    # which requires time to enumerate the USB interface and initialize the serial
+    # buffer after connection. 2 seconds is conservative; 1 second may work.
+    INIT_DELAY: float = 2.0
+
+    # Command response delay in seconds. Small delay after sending a command
+    # to allow the device firmware to process and respond. 50ms is sufficient
+    # for most commands.
+    COMMAND_DELAY: float = 0.05
+
     def __init__(
-        self, port: Optional[str] = None, baudrate: int = 115200, timeout: float = 1
+        self,
+        port: Optional[str] = None,
+        baudrate: int = 115200,
+        timeout: float = 1,
+        init_delay: Optional[float] = None,
     ) -> None:
         """
         Initialize connection to CD48
@@ -37,12 +70,19 @@ class CD48:
             Communication speed (default 115200)
         timeout : float
             Read timeout in seconds
+        init_delay : float, optional
+            Device initialization delay in seconds (default: INIT_DELAY).
+            Set to 0 to skip delay (useful for reconnecting to already-initialized device).
         """
+        self._logger = logging.getLogger(__name__)
+        self._init_delay = init_delay if init_delay is not None else self.INIT_DELAY
+
         if port is None:
             port = self._find_cd48()
 
         self.ser: serial.Serial = serial.Serial(port, baudrate=baudrate, timeout=timeout)
-        time.sleep(2)  # Give device time to initialize
+        if self._init_delay > 0:
+            time.sleep(self._init_delay)
         self.ser.reset_input_buffer()
 
     def _find_cd48(self) -> str:
@@ -51,14 +91,14 @@ class CD48:
         for port in ports:
             # CD48 uses Cypress PSoC5 chip - look for relevant identifiers
             if "USB" in port.description or "Serial" in port.description:
-                print(f"Found potential device: {port.device} - {port.description}")
-                return cast(str, port.device)
-        raise ValueError("Could not find CD48. Please specify port manually.")
+                self._logger.info(f"Found potential device: {port.device} - {port.description}")
+                return str(port.device)
+        raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
 
     def _send_command(self, command: str) -> str:
         """Send command and return response"""
         self.ser.write((command + "\r").encode())
-        time.sleep(0.05)  # Small delay for device to respond
+        time.sleep(self.COMMAND_DELAY)
         response: str = self.ser.read_all().decode().strip()
         return response
 
@@ -68,7 +108,7 @@ class CD48:
     @overload
     def get_counts(self, human_readable: Literal[False]) -> CountsDict: ...
 
-    def get_counts(self, human_readable: bool = True) -> Union[str, CountsDict]:
+    def get_counts(self, human_readable: bool = True) -> str | CountsDict:
         """
         Get current counts from all channels
 
@@ -80,6 +120,11 @@ class CD48:
         Returns:
         --------
         str or dict : Raw response string or parsed dict with counts and overflow
+
+        Raises:
+        -------
+        CD48ParseError
+            If response cannot be parsed (only when human_readable=False)
         """
         if human_readable:
             return self._send_command("C")
@@ -88,10 +133,13 @@ class CD48:
             # Parse space-delimited response: 8 counts + overflow status
             parts = response.split()
             if len(parts) >= 9:
-                counts = [int(x) for x in parts[:8]]
-                overflow = int(parts[8])
-                return {"counts": counts, "overflow": overflow}
-            return response
+                try:
+                    counts = [int(x) for x in parts[:8]]
+                    overflow = int(parts[8])
+                    return {"counts": counts, "overflow": overflow}
+                except ValueError as e:
+                    raise CD48ParseError(f"Failed to parse counts response: {response}") from e
+            raise CD48ParseError(f"Unexpected response format: {response}")
 
     def clear_counts(self) -> None:
         """Clear all counters by reading them"""
@@ -111,7 +159,17 @@ class CD48:
         Example:
         --------
         set_channel(4, A=1, B=1, C=0, D=0)  # Counter 4 counts A-B coincidences
+
+        Raises:
+        -------
+        ValueError
+            If channel is not 0-7 or if A, B, C, D are not 0 or 1
         """
+        if not 0 <= channel <= 7:
+            raise ValueError(f"Channel must be 0-7, got {channel}")
+        for name, value in [("A", A), ("B", B), ("C", C), ("D", D)]:
+            if value not in (0, 1):
+                raise ValueError(f"{name} must be 0 or 1, got {value}")
         command = f"S{channel}{A}{B}{C}{D}"
         return self._send_command(command)
 
@@ -161,19 +219,24 @@ class CD48:
         else:
             return self._send_command("p")
 
-    def get_overflow(self) -> Union[int, str]:
+    def get_overflow(self) -> int:
         """
         Check and clear overflow status
 
         Returns:
         --------
         int : 8-bit overflow flag (bit n indicates counter n overflowed)
+
+        Raises:
+        -------
+        CD48ParseError
+            If response cannot be parsed as an integer
         """
         response = self._send_command("E")
         try:
             return int(response.strip())
-        except ValueError:
-            return response
+        except ValueError as e:
+            raise CD48ParseError(f"Failed to parse overflow response: {response}") from e
 
     def set_dac_voltage(self, voltage: float) -> str:
         """

@@ -9,7 +9,7 @@ from typing import List, cast
 import unittest
 from unittest.mock import Mock, MagicMock, patch
 import serial
-from pycd48 import CD48
+from pycd48 import CD48, CD48Error, CD48ParseError, CD48DeviceNotFoundError
 
 
 class TestCD48(unittest.TestCase):
@@ -164,14 +164,14 @@ class TestCD48EdgeCases(unittest.TestCase):
         # Mock empty port list
         mock_comports.return_value = []
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(CD48DeviceNotFoundError) as context:
             CD48()
 
         self.assertIn("Could not find CD48", str(context.exception))
 
     @patch("serial.Serial")
-    def test_channel_range(self, mock_serial_class: MagicMock) -> None:
-        """Test channel number validation (0-7)."""
+    def test_channel_range_valid(self, mock_serial_class: MagicMock) -> None:
+        """Test that valid channel numbers (0-7) work."""
         mock_serial: Mock = Mock()
         mock_serial.read_all = Mock(return_value=b"OK\r\n")
         mock_serial_class.return_value = mock_serial
@@ -182,8 +182,198 @@ class TestCD48EdgeCases(unittest.TestCase):
         for ch in range(8):
             cd48.set_channel(ch, A=1, B=0, C=0, D=0)
 
-        # Channels outside 0-7 will still send but may not be valid
-        # (The device will handle invalid commands)
+    @patch("serial.Serial")
+    def test_channel_range_invalid(self, mock_serial_class: MagicMock) -> None:
+        """Test that invalid channel numbers raise ValueError."""
+        mock_serial: Mock = Mock()
+        mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        mock_serial_class.return_value = mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        # Invalid channels should raise ValueError
+        with self.assertRaises(ValueError) as context:
+            cd48.set_channel(8, A=1, B=0, C=0, D=0)
+        self.assertIn("Channel must be 0-7", str(context.exception))
+
+        with self.assertRaises(ValueError) as context:
+            cd48.set_channel(-1, A=1, B=0, C=0, D=0)
+        self.assertIn("Channel must be 0-7", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_channel_input_validation(self, mock_serial_class: MagicMock) -> None:
+        """Test that invalid A, B, C, D values raise ValueError."""
+        mock_serial: Mock = Mock()
+        mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        mock_serial_class.return_value = mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        # Invalid A value
+        with self.assertRaises(ValueError) as context:
+            cd48.set_channel(0, A=2, B=0, C=0, D=0)
+        self.assertIn("A must be 0 or 1", str(context.exception))
+
+        # Invalid B value
+        with self.assertRaises(ValueError) as context:
+            cd48.set_channel(0, A=0, B=-1, C=0, D=0)
+        self.assertIn("B must be 0 or 1", str(context.exception))
+
+
+class TestCD48AdditionalMethods(unittest.TestCase):
+    """Test additional CD48 methods for full coverage."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        self.mock_serial: Mock = Mock(spec=serial.Serial)
+        self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+
+    @patch("serial.Serial")
+    def test_get_version(self, mock_serial_class: MagicMock) -> None:
+        """Test get_version command."""
+        self.mock_serial.read_all.return_value = b"CD48 v1.2.3\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.get_version()
+
+        self.mock_serial.write.assert_called_with(b"v\r")
+        self.assertEqual(result, "CD48 v1.2.3")
+
+    @patch("serial.Serial")
+    def test_help(self, mock_serial_class: MagicMock) -> None:
+        """Test help command."""
+        self.mock_serial.read_all.return_value = b"Help text here\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.help()
+
+        self.mock_serial.write.assert_called_with(b"H\r")
+        self.assertEqual(result, "Help text here")
+
+    @patch("serial.Serial")
+    def test_test_leds(self, mock_serial_class: MagicMock) -> None:
+        """Test test_leds command."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        cd48.test_leds()
+
+        self.mock_serial.write.assert_called_with(b"T\r")
+
+    @patch("serial.Serial")
+    def test_get_overflow(self, mock_serial_class: MagicMock) -> None:
+        """Test get_overflow command."""
+        self.mock_serial.read_all.return_value = b"5\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.get_overflow()
+
+        self.mock_serial.write.assert_called_with(b"E\r")
+        self.assertEqual(result, 5)
+
+    @patch("serial.Serial")
+    def test_get_overflow_parse_error(self, mock_serial_class: MagicMock) -> None:
+        """Test get_overflow raises CD48ParseError on invalid response."""
+        self.mock_serial.read_all.return_value = b"invalid\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        with self.assertRaises(CD48ParseError) as context:
+            cd48.get_overflow()
+        self.assertIn("Failed to parse overflow response", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_get_settings(self, mock_serial_class: MagicMock) -> None:
+        """Test get_settings commands."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        # Human readable
+        cd48.get_settings(human_readable=True)
+        self.mock_serial.write.assert_called_with(b"P\r")
+
+        # Machine readable
+        cd48.get_settings(human_readable=False)
+        self.mock_serial.write.assert_called_with(b"p\r")
+
+    @patch("serial.Serial")
+    def test_set_dac_voltage(self, mock_serial_class: MagicMock) -> None:
+        """Test set_dac_voltage command."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        # Test voltage to byte conversion (2.04V -> 127)
+        cd48.set_dac_voltage(2.04)
+        call_args = self.mock_serial.write.call_args[0][0]
+        self.assertTrue(call_args.startswith(b"V"))
+        self.assertTrue(call_args.endswith(b"\r"))
+
+        # Test clamping high voltage
+        cd48.set_dac_voltage(10.0)
+        self.mock_serial.write.assert_called_with(b"V255\r")
+
+        # Test clamping negative voltage
+        cd48.set_dac_voltage(-1.0)
+        self.mock_serial.write.assert_called_with(b"V0\r")
+
+    @patch("serial.Serial")
+    def test_close(self, mock_serial_class: MagicMock) -> None:
+        """Test close method."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        cd48.close()
+
+        self.mock_serial.close.assert_called_once()
+
+    @patch("serial.Serial")
+    def test_get_counts_parse_error(self, mock_serial_class: MagicMock) -> None:
+        """Test get_counts raises CD48ParseError on invalid response."""
+        self.mock_serial.read_all.return_value = b"invalid response\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        with self.assertRaises(CD48ParseError) as context:
+            cd48.get_counts(human_readable=False)
+        self.assertIn("Unexpected response format", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_get_counts_value_error(self, mock_serial_class: MagicMock) -> None:
+        """Test get_counts raises CD48ParseError on non-numeric values."""
+        # 9 parts but non-numeric
+        self.mock_serial.read_all.return_value = b"a b c d e f g h i\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        with self.assertRaises(CD48ParseError) as context:
+            cd48.get_counts(human_readable=False)
+        self.assertIn("Failed to parse counts response", str(context.exception))
+
+
+class TestCD48Exceptions(unittest.TestCase):
+    """Test exception hierarchy."""
+
+    def test_exception_hierarchy(self) -> None:
+        """Test that custom exceptions inherit from CD48Error."""
+        self.assertTrue(issubclass(CD48ParseError, CD48Error))
+        self.assertTrue(issubclass(CD48DeviceNotFoundError, CD48Error))
+        self.assertTrue(issubclass(CD48Error, Exception))
+
+    def test_exception_messages(self) -> None:
+        """Test exception message handling."""
+        error = CD48ParseError("test message")
+        self.assertEqual(str(error), "test message")
+
+        error = CD48DeviceNotFoundError("device not found")
+        self.assertEqual(str(error), "device not found")
 
 
 if __name__ == "__main__":
