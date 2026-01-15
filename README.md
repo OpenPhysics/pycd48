@@ -168,6 +168,30 @@ with CD48() as cd48:
 # Automatically closes connection
 ```
 
+### Serial Command Reference
+
+For advanced users, here are the low-level serial commands used by the CD48:
+
+| Command | Parameters | Function | Python Method |
+|---------|-----------|----------|---------------|
+| `c` | None | Get counts (machine-readable) | `get_counts(human_readable=False)` |
+| `C` | None | Get counts (pretty-print) | `get_counts(human_readable=True)` |
+| `E` | None | Get overflow status and clear | `get_overflow()` |
+| `H` | None | Display help text | `help()` |
+| `L###` | 0-255 | Set trigger level (byte value) | `set_trigger_level(voltage)` |
+| `p` | None | Get settings (machine-readable) | `get_settings(human_readable=False)` |
+| `P` | None | Get settings (pretty-print) | `get_settings(human_readable=True)` |
+| `r####` | 100-65535 | Set repeat interval (ms) | `set_repeat(interval_ms)` |
+| `R` | None | Toggle repeat mode | `toggle_repeat()` |
+| `S#####` | Counter+ABCD | Set channel configuration | `set_channel(ch, A, B, C, D)` |
+| `T` | None | Test all LEDs | `test_leds()` |
+| `v` | None | Get firmware version | `get_version()` |
+| `V###` | 0-255 | Set DAC voltage (byte value) | `set_dac_voltage(voltage)` |
+| `z` | None | Set 50Ω impedance | `set_impedance_50ohm()` |
+| `Z` | None | Set high-Z impedance | `set_impedance_highz()` |
+
+**Note**: Commands are sent with a carriage return (`\r`). Case matters for some commands.
+
 ## Examples
 
 The library includes comprehensive examples for various use cases. See the [examples directory](examples/) for complete code.
@@ -237,7 +261,7 @@ cd48.set_channel(7, A=1, B=1, C=1, D=0)  # A AND B AND C
 
 ## Timing and Coincidence Windows
 
-The CD48 has a fixed coincidence window of approximately **10 nanoseconds**. Events on selected channels must occur within this window to be counted as a coincidence.
+The CD48 has a fixed coincidence window of approximately **25 nanoseconds** (time resolution based on edge detection). Events on selected channels must occur within this window to be counted as a coincidence.
 
 ### Accidental Coincidence Correction
 
@@ -248,10 +272,10 @@ R_acc = 2 × τ × R_A × R_B
 ```
 
 where:
-- `τ` = coincidence window (~10 ns)
+- `τ` = coincidence window (~25 ns)
 - `R_A`, `R_B` = singles rates on channels A and B
 
-See `examples/continuous_collection.py` for implementation.
+See `examples/continuous_collection.py` and `examples/accidental_analysis.py` for implementation.
 
 ## Troubleshooting
 
@@ -283,14 +307,19 @@ sudo usermod -a -G dialout $USER
 
 ## Technical Specifications
 
-- **Input channels**: 4 (A, B, C, D)
-- **Counters**: 8 configurable
-- **Count depth**: 32-bit (4,294,967,295 max)
-- **Coincidence window**: ~10 ns
-- **Trigger range**: 0-4.08V
+- **Input channels**: 4 (A, B, C, D) BNC connectors
+- **Counters**: 8 independently configurable
+  - Counters 0-6: 32-bit (max count: 4,294,967,295)
+  - Counter 7: 16-bit (max count: 65,535)
+- **Coincidence window**: ~25 ns (edge detection based)
+- **Time resolution**: 25 nanoseconds
+- **Trigger threshold**: 0-4.02V (8-bit: 0-255), adjustable
+- **DAC output**: 0-4.02V (8-bit: 0-255), for experiment control
 - **Input impedance**: 50Ω or High-Z (selectable)
-- **Interface**: USB virtual COM port
+- **Interface**: USB virtual COM port (Cypress PSoC5)
 - **Baudrate**: 115200
+- **LED indicators**: Input activity, counter activity, overflow, communications, data status
+- **Configuration persistence**: Settings saved across power cycles
 
 ## License
 

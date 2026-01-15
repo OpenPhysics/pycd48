@@ -72,8 +72,8 @@ def main():
 
         # Calculate accidental coincidence rate (assuming uncorrelated sources)
         # Accidental rate = Rate_A * Rate_B * 2 * tau
-        # where tau is the coincidence window (typically ~10 ns for CD48)
-        tau = 10e-9  # 10 nanoseconds
+        # where tau is the coincidence window (~25 ns for CD48)
+        tau = 25e-9  # 25 nanoseconds
         accidental_rate = counts_A.mean() * counts_B.mean() * 2 * tau
         true_coincidences = coincidences.mean() - accidental_rate
 

@@ -105,10 +105,10 @@ class CD48:
         Parameters:
         -----------
         voltage : float
-            Voltage threshold (0.0 to 4.08V)
+            Voltage threshold (0.0 to 4.02V)
         """
         # Convert voltage to byte value (0-255)
-        byte_val = int((voltage / 4.08) * 255)
+        byte_val = int((voltage / 4.02) * 255)
         byte_val = max(0, min(255, byte_val))  # Clamp to valid range
         return self._send_command(f'L{byte_val}')
 
@@ -164,9 +164,9 @@ class CD48:
         Parameters:
         -----------
         voltage : float
-            Output voltage (0.0 to 4.08V)
+            Output voltage (0.0 to 4.02V)
         """
-        byte_val = int((voltage / 4.08) * 255)
+        byte_val = int((voltage / 4.02) * 255)
         byte_val = max(0, min(255, byte_val))
         return self._send_command(f'V{byte_val}')
 

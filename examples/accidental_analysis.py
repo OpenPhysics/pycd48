@@ -12,7 +12,7 @@ can occur purely by chance. The expected accidental coincidence rate is:
     R_acc = 2 × τ × R_A × R_B
 
 where:
-    τ = coincidence window (typically ~10 ns for CD48)
+    τ = coincidence window (~25 ns for CD48)
     R_A, R_B = singles rates on channels A and B
 
 This example demonstrates:
@@ -94,7 +94,7 @@ def measure_rates(cd48, num_samples=30, interval=2.0):
     }
 
 
-def analyze_coincidences(data, tau=10e-9):
+def analyze_coincidences(data, tau=25e-9):
     """
     Analyze coincidence data to separate true from accidental coincidences.
 
@@ -103,7 +103,7 @@ def analyze_coincidences(data, tau=10e-9):
     data : dict
         Measurement data from measure_rates()
     tau : float
-        Coincidence window in seconds (default: 10 ns)
+        Coincidence window in seconds (default: 25 ns)
 
     Returns:
     --------
