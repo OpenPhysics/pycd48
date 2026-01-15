@@ -258,6 +258,105 @@ python accidental_analysis.py
 
 ---
 
+### 8. realtime_monitor.py
+
+**Purpose**: Real-time monitoring using automatic repeat mode
+
+**Usage**:
+```bash
+python realtime_monitor.py
+```
+
+**What it does**:
+- Enables CD48's automatic repeat mode
+- Device sends count data at set intervals (e.g., every 1 second)
+- Displays real-time data stream
+- Reduces USB communication overhead
+- No polling required - data pushed automatically from device
+
+**Perfect for**:
+- Real-time monitoring dashboards
+- Continuous data streaming
+- Reducing CPU usage during long measurements
+- Synchronized data acquisition
+
+**Duration**: Continuous (until stopped)
+
+**Key feature**: Uses the `r` (set interval) and `R` (toggle) commands for automatic reporting
+
+---
+
+### 9. voltage_sweep.py
+
+**Purpose**: Automated voltage sweep using DAC output
+
+**Usage**:
+```bash
+python voltage_sweep.py
+```
+
+**What it does**:
+- Sweeps DAC output voltage from 0-4V
+- Measures count rates at each voltage
+- Finds optimal operating voltage
+- Calculates signal-to-noise ratio
+- Generates comprehensive analysis plots:
+  - Count rates vs voltage
+  - Coincidence rate optimization
+  - S/N ratio analysis
+  - Total counts comparison
+- Saves results as `voltage_sweep.png`
+
+**Perfect for**:
+- PMT high voltage optimization
+- Detector bias voltage scanning
+- Automated equipment control
+- Finding optimal operating points
+- Experiment automation
+
+**Duration**: Configurable (default ~1 minute for 20 points)
+
+**Key feature**: Uses the `V` command to control external equipment via DAC output (0-4.08V)
+
+**Typical use case**: Connect DAC output to PMT power supply control input to find optimal voltage for maximum coincidence rate
+
+---
+
+### 10. overflow_demo.py
+
+**Purpose**: Counter overflow detection and adaptive measurement
+
+**Usage**:
+```bash
+python overflow_demo.py
+```
+
+**What it does**:
+- Demonstrates counter overflow detection
+- Decodes which specific counters overflowed
+- Shows difference between 24-bit and 16-bit counters
+- Implements adaptive interval adjustment
+- Automatically reduces interval when approaching overflow
+- Calculates safe measurement intervals for various count rates
+- Provides best practices and recommendations
+
+**Perfect for**:
+- High count rate measurements
+- Learning counter limitations
+- Preventing data loss
+- Understanding when to use which counter
+
+**Duration**: ~30 seconds (configurable)
+
+**Key feature**: Uses the `E` command to check and clear overflow flags
+
+**Important notes**:
+- Counters 0-6: 24-bit (max 16,777,215)
+- Counter 7: 16-bit (max 65,535) - use for rare events only!
+- At 1 MHz: Counter 7 overflows in 0.065 seconds!
+
+---
+
 ## Customizing the Examples
 
 All examples can be easily modified for your experiment:
