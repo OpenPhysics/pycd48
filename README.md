@@ -236,6 +236,24 @@ python examples/data_logger.py
 Detailed analysis of true vs. accidental coincidences:
 ```bash
 python examples/accidental_analysis.py
+
+### Example 8: Real-time Monitor (Repeat Mode)
+Real-time monitoring using automatic repeat mode:
+```bash
+python examples/realtime_monitor.py
+```
+
+### Example 9: Voltage Sweep (DAC Control)
+Automated voltage sweep using DAC output for equipment control:
+```bash
+python examples/voltage_sweep.py
+```
+
+### Example 10: Overflow Detection
+Counter overflow detection and adaptive measurement:
+```bash
+python examples/overflow_demo.py
+```
 ```
 
 See the [examples README](examples/README.md) for detailed descriptions of each example.
