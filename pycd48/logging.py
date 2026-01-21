@@ -14,6 +14,14 @@ from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from .cd48 import CD48
 
+# Logging format constants
+# Number of CD48 channels (matches CD48.NUM_CHANNELS)
+NUM_CHANNELS: int = 8
+# Decimal precision for elapsed time formatting
+TIME_PRECISION_DECIMALS: int = 3
+# JSON output indentation level for readability
+JSON_INDENT_SPACES: int = 2
+
 
 class DataLogger:
     """
@@ -49,7 +57,7 @@ class DataLogger:
             Whether to include timestamps in logged data
         """
         self.filename = Path(filename)
-        self.channels = channels if channels is not None else list(range(8))
+        self.channels = channels if channels is not None else list(range(NUM_CHANNELS))
         self.include_timestamp = include_timestamp
         self.format = self.filename.suffix.lower()
 
@@ -100,7 +108,7 @@ class DataLogger:
             row = []
             if self.include_timestamp:
                 row.append(datetime.now().isoformat())
-                row.append(f"{elapsed:.3f}")
+                row.append(f"{elapsed:.{TIME_PRECISION_DECIMALS}f}")
             row.extend([counts[i] for i in self.channels])
             self._writer.writerow(row)
             self._file.flush()
@@ -108,7 +116,7 @@ class DataLogger:
             entry: Dict[str, Any] = {}
             if self.include_timestamp:
                 entry["timestamp"] = datetime.now().isoformat()
-                entry["elapsed_seconds"] = round(elapsed, 3)
+                entry["elapsed_seconds"] = round(elapsed, TIME_PRECISION_DECIMALS)
             entry["counts"] = {f"channel_{i}": counts[i] for i in self.channels}
             if overflow is not None:
                 entry["overflow"] = overflow
@@ -124,7 +132,7 @@ class DataLogger:
                 self._file = None
         else:
             with open(self.filename, "w") as f:
-                json.dump(self._json_data, f, indent=2)
+                json.dump(self._json_data, f, indent=JSON_INDENT_SPACES)
 
     def __enter__(self) -> "DataLogger":
         return self

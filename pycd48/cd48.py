@@ -74,11 +74,41 @@ class CD48:
     # for most commands.
     COMMAND_DELAY: float = 0.05
 
+    # Hardware constants
+    # USB Vendor ID for Cypress PSoC5 chip used in CD48
+    CYPRESS_VENDOR_ID: int = 0x04B4
+
+    # Number of counters/channels available on the CD48 device
+    NUM_CHANNELS: int = 8
+
+    # DAC voltage range: The CD48 uses an 8-bit DAC with a 0-4.08V output range
+    # Maximum output voltage in volts
+    DAC_MAX_VOLTAGE: float = 4.08
+    # Maximum byte value for 8-bit DAC
+    DAC_MAX_BYTE: int = 255
+
+    # Auto-repeat interval limits in milliseconds
+    # Minimum interval to prevent overwhelming the USB interface
+    REPEAT_INTERVAL_MIN_MS: int = 100
+    # Maximum interval (16-bit unsigned integer limit)
+    REPEAT_INTERVAL_MAX_MS: int = 65535
+
+    # Communication defaults
+    # Default baud rate for USB serial communication
+    DEFAULT_BAUDRATE: int = 115200
+    # Default timeout for serial read operations in seconds
+    DEFAULT_TIMEOUT: float = 1.0
+
+    # Physics constants
+    # Default coincidence window in seconds (25 nanoseconds)
+    # This is the time window for counting coincident events
+    DEFAULT_COINCIDENCE_WINDOW: float = 25e-9
+
     def __init__(
         self,
         port: Optional[str] = None,
-        baudrate: int = 115200,
-        timeout: float = 1,
+        baudrate: int = DEFAULT_BAUDRATE,
+        timeout: float = DEFAULT_TIMEOUT,
         init_delay: Optional[float] = None,
     ) -> None:
         """
@@ -114,8 +144,8 @@ class CD48:
 
         # First pass: look for Cypress VID (more reliable)
         for port in ports:
-            # CD48 uses Cypress PSoC5 chip with VID 0x04b4
-            if port.vid == 0x04B4:
+            # CD48 uses Cypress PSoC5 chip
+            if port.vid == self.CYPRESS_VENDOR_ID:
                 self._logger.info(f"Found CD48 (Cypress): {port.device} - {port.description}")
                 return str(port.device)
 
@@ -166,12 +196,12 @@ class CD48:
             return self._send_command("C")
         else:
             response = self._send_command("c")
-            # Parse space-delimited response: 8 counts + overflow status
+            # Parse space-delimited response: NUM_CHANNELS counts + overflow status
             parts = response.split()
-            if len(parts) >= 9:
+            if len(parts) >= self.NUM_CHANNELS + 1:
                 try:
-                    counts = [int(x) for x in parts[:8]]
-                    overflow = int(parts[8])
+                    counts = [int(x) for x in parts[:self.NUM_CHANNELS]]
+                    overflow = int(parts[self.NUM_CHANNELS])
                     return {"counts": counts, "overflow": overflow}
                 except ValueError as e:
                     raise CD48ParseError(f"Failed to parse counts response: {response}") from e
@@ -219,8 +249,8 @@ class CD48:
         ValueError
             If channel is not 0-7 or if A, B, C, D are not 0 or 1
         """
-        if not 0 <= channel <= 7:
-            raise ValueError(f"Channel must be 0-7, got {channel}")
+        if not 0 <= channel < self.NUM_CHANNELS:
+            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
         for name, value in [("A", A), ("B", B), ("C", C), ("D", D)]:
             if value not in (0, 1):
                 raise ValueError(f"{name} must be 0 or 1, got {value}")
@@ -236,10 +266,10 @@ class CD48:
         voltage : float
             Voltage threshold (0.0 to 4.08V)
         """
-        # Convert voltage to byte value (0-255)
-        byte_val = int((voltage / 4.08) * 255)
-        # Per manual: 0-255 maps to 0-4.08V
-        byte_val = max(0, min(255, byte_val))  # Clamp to valid range
+        # Convert voltage to byte value for 8-bit DAC
+        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
+        # Clamp to valid range per hardware spec
+        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
         return self._send_command(f"L{byte_val}")
 
     def set_impedance_50ohm(self) -> str:
@@ -259,7 +289,7 @@ class CD48:
         interval_ms : int
             Reporting interval in milliseconds (100-65535)
         """
-        interval_ms = max(100, min(65535, interval_ms))
+        interval_ms = max(self.REPEAT_INTERVAL_MIN_MS, min(self.REPEAT_INTERVAL_MAX_MS, interval_ms))
         return self._send_command(f"r{interval_ms}")
 
     def toggle_repeat(self) -> str:
@@ -301,9 +331,9 @@ class CD48:
         voltage : float
             Output voltage (0.0 to 4.08V)
         """
-        byte_val = int((voltage / 4.08) * 255)
-        # Per manual: 0-255 maps to 0-4.08V
-        byte_val = max(0, min(255, byte_val))
+        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
+        # Clamp to valid range per hardware spec
+        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
         return self._send_command(f"V{byte_val}")
 
     def get_version(self) -> str:
@@ -344,8 +374,8 @@ class CD48:
         >>> result = cd48.measure_rate(channel=0, duration=10)
         >>> print(f"Rate: {result['rate']:.2f} Hz")
         """
-        if not 0 <= channel <= 7:
-            raise ValueError(f"Channel must be 0-7, got {channel}")
+        if not 0 <= channel < self.NUM_CHANNELS:
+            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
 
         self.clear_counts()
         time.sleep(duration)
@@ -365,7 +395,7 @@ class CD48:
         singles_a_channel: int = 0,
         singles_b_channel: int = 1,
         coincidence_channel: int = 4,
-        coincidence_window: float = 25e-9,
+        coincidence_window: float = DEFAULT_COINCIDENCE_WINDOW,
     ) -> CoincidenceResult:
         """
         Measure coincidence rate with accidental correction.
