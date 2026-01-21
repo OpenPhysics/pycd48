@@ -5,7 +5,7 @@ Provides matplotlib-based visualization for count rates.
 """
 
 import time
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     from .cd48 import CD48
@@ -84,13 +84,13 @@ class RatePlotter:
         self.interval = interval
 
         self._times: List[float] = []
-        self._rates: dict = {ch: [] for ch in self.channels}
+        self._rates: Dict[int, List[float]] = {ch: [] for ch in self.channels}
         self._start_time: float = 0
 
-        self._fig = None
-        self._ax = None
-        self._lines = {}
-        self._animation = None
+        self._fig: Optional[Any] = None
+        self._ax: Optional[Any] = None
+        self._lines: Dict[int, Any] = {}
+        self._animation: Optional[Any] = None
 
     def _init_plot(self):
         """Initialize the plot."""
@@ -169,16 +169,18 @@ class RatePlotter:
         if duration is not None:
             frames = int(duration / self.interval)
 
-        self._animation = _FuncAnimation(
-            self._fig,
-            self._update,
-            frames=frames,
-            interval=int(self.interval * MS_PER_SECOND),
-            blit=False,
-            repeat=False,
-        )
+        if _FuncAnimation:
+            self._animation = _FuncAnimation(
+                self._fig,
+                self._update,
+                frames=frames,
+                interval=int(self.interval * MS_PER_SECOND),
+                blit=False,
+                repeat=False,
+            )
 
-        _plt.show()
+        if _plt:
+            _plt.show()
 
     def save_animation(self, filename: str, duration: float, fps: int = 1):
         """
@@ -198,17 +200,20 @@ class RatePlotter:
         self.cd48.clear_counts()
 
         frames = int(duration / self.interval)
-        self._animation = _FuncAnimation(
-            self._fig,
-            self._update,
-            frames=frames,
-            interval=int(self.interval * MS_PER_SECOND),
-            blit=False,
-            repeat=False,
-        )
+        if _FuncAnimation:
+            self._animation = _FuncAnimation(
+                self._fig,
+                self._update,
+                frames=frames,
+                interval=int(self.interval * MS_PER_SECOND),
+                blit=False,
+                repeat=False,
+            )
 
-        self._animation.save(filename, fps=fps)
-        _plt.close()
+        if self._animation:
+            self._animation.save(filename, fps=fps)
+        if _plt:
+            _plt.close()
 
 
 def plot_rates(

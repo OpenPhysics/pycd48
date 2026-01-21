@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING, TextIO, Callable
 
 if TYPE_CHECKING:
     from .cd48 import CD48
@@ -64,8 +64,8 @@ class DataLogger:
         if self.format not in (".csv", ".json"):
             raise ValueError(f"Unsupported format: {self.format}. Use .csv or .json")
 
-        self._file = None
-        self._writer = None
+        self._file: Optional[TextIO] = None
+        self._writer: Optional[Any] = None  # csv.writer type is complex
         self._json_data: List[Dict[str, Any]] = []
         self._start_time = time.time()
 
@@ -105,13 +105,15 @@ class DataLogger:
         elapsed = now - self._start_time
 
         if self.format == ".csv":
-            row = []
+            row: List[Any] = []
             if self.include_timestamp:
                 row.append(datetime.now().isoformat())
                 row.append(f"{elapsed:.{TIME_PRECISION_DECIMALS}f}")
             row.extend([counts[i] for i in self.channels])
-            self._writer.writerow(row)
-            self._file.flush()
+            if self._writer:
+                self._writer.writerow(row)
+            if self._file:
+                self._file.flush()
         else:
             entry: Dict[str, Any] = {}
             if self.include_timestamp:
@@ -147,7 +149,7 @@ def log_continuous(
     duration: float,
     interval: float = 1.0,
     channels: Optional[List[int]] = None,
-    callback: Optional[callable] = None,
+    callback: Optional[Callable[[List[int], float], None]] = None,
 ) -> Path:
     """
     Log continuous measurements to file.

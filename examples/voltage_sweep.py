@@ -116,7 +116,7 @@ def main() -> None:
 
         voltage_range = np.linspace(v_min, v_max, v_steps)
 
-        print(f"Sweep parameters:")
+        print("Sweep parameters:")
         print(f"  Voltage range: {v_min}V to {v_max}V")
         print(f"  Steps: {v_steps}")
         print(f"  Time per point: {measurement_time}s")

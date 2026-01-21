@@ -200,12 +200,18 @@ class CD48:
             parts = response.split()
             if len(parts) >= self.NUM_CHANNELS + 1:
                 try:
-                    counts = [int(x) for x in parts[:self.NUM_CHANNELS]]
+                    counts = [int(x) for x in parts[: self.NUM_CHANNELS]]
                     overflow = int(parts[self.NUM_CHANNELS])
                     return {"counts": counts, "overflow": overflow}
                 except ValueError as e:
                     raise CD48ParseError(f"Failed to parse counts response: {response}") from e
             raise CD48ParseError(f"Unexpected response format: {response}")
+
+    @overload
+    def read_and_clear_counts(self, human_readable: Literal[True] = True) -> str: ...
+
+    @overload
+    def read_and_clear_counts(self, human_readable: Literal[False]) -> CountsDict: ...
 
     def read_and_clear_counts(self, human_readable: bool = True) -> str | CountsDict:
         """
@@ -223,7 +229,10 @@ class CD48:
         --------
         str or dict : Raw response string or parsed dict with counts and overflow
         """
-        return self.get_counts(human_readable=human_readable)
+        if human_readable:
+            return self.get_counts(human_readable=True)
+        else:
+            return self.get_counts(human_readable=False)
 
     def clear_counts(self) -> None:
         """Clear all counters by reading and discarding the values."""
@@ -289,7 +298,9 @@ class CD48:
         interval_ms : int
             Reporting interval in milliseconds (100-65535)
         """
-        interval_ms = max(self.REPEAT_INTERVAL_MIN_MS, min(self.REPEAT_INTERVAL_MAX_MS, interval_ms))
+        interval_ms = max(
+            self.REPEAT_INTERVAL_MIN_MS, min(self.REPEAT_INTERVAL_MAX_MS, interval_ms)
+        )
         return self._send_command(f"r{interval_ms}")
 
     def toggle_repeat(self) -> str:

@@ -71,7 +71,7 @@ def main() -> None:
             print(f"\n  WARNING: Counter overflow detected! (0x{overflow:02X})")
 
         # Calculate rates
-        print(f"\nCount rates (counts per second):")
+        print("\nCount rates (counts per second):")
         print(f"  Channel A rate:        {counts[0]/duration:8.2f} Hz")
         print(f"  Channel B rate:        {counts[1]/duration:8.2f} Hz")
         print(f"  Channel C rate:        {counts[2]/duration:8.2f} Hz")
