@@ -14,6 +14,24 @@ if TYPE_CHECKING:
 _plt = None
 _FuncAnimation = None
 
+# Plotting defaults and constants
+# Default channels to plot: A, B, and A+B coincidence
+DEFAULT_PLOT_CHANNELS: List[int] = [0, 1, 4]
+# Default maximum number of historical data points to display
+DEFAULT_MAX_POINTS: int = 100
+# Default measurement/update interval in seconds
+DEFAULT_UPDATE_INTERVAL: float = 1.0
+# Default figure size in inches (width, height)
+DEFAULT_FIGURE_SIZE: tuple = (10, 6)
+# Grid line transparency (0=invisible, 1=opaque)
+GRID_ALPHA: float = 0.3
+# Minimum Y-axis limit in Hz to ensure visibility at low rates
+MIN_Y_AXIS_LIMIT: float = 10.0
+# Y-axis scaling factor: max_rate * this value (110% headroom)
+Y_AXIS_SCALE_FACTOR: float = 1.1
+# Milliseconds per second for interval conversion
+MS_PER_SECOND: int = 1000
+
 
 def _ensure_matplotlib():
     """Lazy import matplotlib."""
@@ -41,8 +59,8 @@ class RatePlotter:
         self,
         cd48: "CD48",
         channels: Optional[List[int]] = None,
-        max_points: int = 100,
-        interval: float = 1.0,
+        max_points: int = DEFAULT_MAX_POINTS,
+        interval: float = DEFAULT_UPDATE_INTERVAL,
     ):
         """
         Initialize rate plotter.
@@ -61,7 +79,7 @@ class RatePlotter:
         _ensure_matplotlib()
 
         self.cd48 = cd48
-        self.channels = channels if channels is not None else [0, 1, 4]
+        self.channels = channels if channels is not None else DEFAULT_PLOT_CHANNELS
         self.max_points = max_points
         self.interval = interval
 
@@ -76,11 +94,11 @@ class RatePlotter:
 
     def _init_plot(self):
         """Initialize the plot."""
-        self._fig, self._ax = _plt.subplots(figsize=(10, 6))
+        self._fig, self._ax = _plt.subplots(figsize=DEFAULT_FIGURE_SIZE)
         self._ax.set_xlabel("Time (s)")
         self._ax.set_ylabel("Count Rate (Hz)")
         self._ax.set_title("CD48 Real-time Count Rates")
-        self._ax.grid(True, alpha=0.3)
+        self._ax.grid(True, alpha=GRID_ALPHA)
 
         channel_names = {
             0: "Ch0 (A)",
@@ -130,7 +148,7 @@ class RatePlotter:
             all_rates = [r for ch_rates in self._rates.values() for r in ch_rates]
             if all_rates:
                 max_rate = max(all_rates)
-                self._ax.set_ylim(0, max(10, max_rate * 1.1))
+                self._ax.set_ylim(0, max(MIN_Y_AXIS_LIMIT, max_rate * Y_AXIS_SCALE_FACTOR))
 
         return list(self._lines.values())
 
@@ -155,7 +173,7 @@ class RatePlotter:
             self._fig,
             self._update,
             frames=frames,
-            interval=int(self.interval * 1000),
+            interval=int(self.interval * MS_PER_SECOND),
             blit=False,
             repeat=False,
         )
@@ -184,7 +202,7 @@ class RatePlotter:
             self._fig,
             self._update,
             frames=frames,
-            interval=int(self.interval * 1000),
+            interval=int(self.interval * MS_PER_SECOND),
             blit=False,
             repeat=False,
         )
