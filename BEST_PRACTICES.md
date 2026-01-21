@@ -24,7 +24,7 @@ pytest tests/ -v --cov=pycd48
 
 ### 3. Code Quality Tools ✓
 - **Black**: Automatic code formatting
-- **Flake8**: Linting and style checking
+- **Ruff**: Fast linting and style checking
 - **MyPy**: Static type checking
 - **Pre-commit hooks**: Automatic checks before commits
 
@@ -37,7 +37,7 @@ pre-commit install
 **Manual code quality checks:**
 ```bash
 black pycd48/ tests/
-flake8 pycd48/ tests/
+ruff check pycd48/ tests/
 mypy pycd48/
 ```
 
@@ -227,7 +227,7 @@ def test_count_acquisition_speed(benchmark):
 - ✅ Unit tests with mocking
 - ✅ CI/CD pipeline
 - ✅ Code formatting (Black)
-- ✅ Linting (Flake8)
+- ✅ Linting (Ruff)
 - ✅ Type checking (MyPy)
 - ✅ Documentation
 - ✅ Type hints (comprehensive)
@@ -237,7 +237,7 @@ def test_count_acquisition_speed(benchmark):
 ### Goals
 - 🎯 >90% test coverage
 - 🎯 100% type hint coverage
-- 🎯 Zero flake8 warnings
+- 🎯 Zero ruff warnings
 - 🎯 MyPy strict mode compliance
 - 🎯 Published on PyPI
 
@@ -267,7 +267,7 @@ black pycd48/ tests/ examples/
 black --check pycd48/
 
 # Lint code
-flake8 pycd48/ tests/
+ruff check pycd48/ tests/
 
 # Type check
 mypy pycd48/
@@ -305,7 +305,7 @@ This project now follows modern Python best practices:
 1. ✅ **Tested**: Comprehensive unit tests
 2. ✅ **Automated**: CI/CD pipeline
 3. ✅ **Formatted**: Black code style
-4. ✅ **Linted**: Flake8 compliance
+4. ✅ **Linted**: Ruff compliance
 5. ✅ **Typed**: MyPy checked
 6. ✅ **Documented**: README, CONTRIBUTING, examples
 7. ✅ **Versioned**: CHANGELOG and semantic versioning

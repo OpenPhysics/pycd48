@@ -122,7 +122,7 @@ We follow PEP 8 with some modifications:
 
 - Maximum line length: 100 characters
 - Use Black for code formatting
-- Use flake8 for linting
+- Use ruff for linting
 - Use type hints where possible
 
 ### Formatting
@@ -134,7 +134,7 @@ Before committing, format your code:
 black pycd48/ tests/
 
 # Check linting
-flake8 pycd48/ tests/ --max-line-length=100
+ruff check pycd48/ tests/
 
 # Type checking
 mypy pycd48/

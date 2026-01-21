@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI/CD pipeline
 - Contributing guidelines (CONTRIBUTING.md)
 - This CHANGELOG file
-- Code quality tools integration (black, flake8, mypy)
+- Code quality tools integration (black, ruff, mypy)
 
 ## [0.1.0] - 2026-01-15
 

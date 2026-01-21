@@ -421,7 +421,7 @@ uv run mypy pycd48/ tests/
 **Code Formatting:**
 ```bash
 uv run black pycd48/ tests/
-uv run flake8 pycd48/ tests/
+uv run ruff check pycd48/ tests/
 ```
 
 **Pre-commit Hooks:**
@@ -436,7 +436,7 @@ The project uses:
 - Function overloads for precise type inference
 - Mypy for static type checking
 - Black for code formatting
-- Flake8 for linting
+- Ruff for linting
 
 ## Use Cases
 
