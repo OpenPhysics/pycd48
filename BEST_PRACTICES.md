@@ -18,7 +18,7 @@ pytest tests/ -v --cov=pycd48
 ### 2. Continuous Integration/Deployment ✓
 - **GitHub Actions**: `.github/workflows/ci.yml`
   - Tests on multiple OS (Ubuntu, Windows, macOS)
-  - Tests on multiple Python versions (3.7-3.11)
+  - Tests on multiple Python versions (3.10-3.13)
   - Automated code quality checks
   - Coverage reporting to Codecov
 
@@ -199,9 +199,8 @@ def test_count_acquisition_speed(benchmark):
 ### For Contributors
 
 1. **Fork and clone** the repository
-2. **Create virtual environment**
-3. **Install dev dependencies**: `pip install -r requirements-dev.txt`
-4. **Install pre-commit hooks**: `pre-commit install`
+2. **Install dev dependencies**: `uv sync --extra dev` (or `pip install -e ".[dev]"`)
+3. **Install pre-commit hooks**: `pre-commit install`
 5. **Create feature branch**: `git checkout -b feature/new-feature`
 6. **Make changes** following style guide
 7. **Write tests** for new code
@@ -279,14 +278,14 @@ pre-commit run --all-files
 
 ### Development
 ```bash
-# Install in development mode
-pip install -e .
+# Using uv (recommended)
+uv sync --extra dev
 
-# Install with dev dependencies
+# Or using pip
 pip install -e ".[dev]"
 
 # Update dependencies
-pip install --upgrade -r requirements-dev.txt
+uv lock --upgrade
 ```
 
 ## 📚 Resources
