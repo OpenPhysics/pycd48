@@ -35,28 +35,30 @@ This project adheres to a code of conduct that all contributors are expected to 
 
 ### Prerequisites
 
-- Python 3.7 or higher
-- pip
-- virtualenv (recommended)
+- Python 3.10 or higher
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
 ### Setting Up Development Environment
 
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+**Using uv (recommended):**
+```bash
+# Install all dependencies including dev tools
+uv sync --extra dev
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   pip install -e .  # Install package in editable mode
-   ```
+# Run commands with uv
+uv run pytest
+uv run black pycd48/ tests/
+```
 
-3. Install development dependencies:
-   ```bash
-   pip install pytest pytest-cov black flake8 mypy
-   ```
+**Using pip:**
+```bash
+# Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install package in editable mode with dev dependencies
+pip install -e ".[dev]"
+```
 
 ## Making Changes
 
