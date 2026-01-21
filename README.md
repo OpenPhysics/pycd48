@@ -1,6 +1,6 @@
 # pycd48 - Python Interface for CD48 Coincidence Counter
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 A comprehensive Python library for controlling the [Red Dog Physics CD48 Coincidence Counter](https://www.reddogphysics.com/cd48.html) via USB serial interface.
@@ -249,6 +249,7 @@ python examples/data_logger.py
 Detailed analysis of true vs. accidental coincidences:
 ```bash
 python examples/accidental_analysis.py
+```
 
 ### Example 8: Real-time Monitor (Repeat Mode)
 Real-time monitoring using automatic repeat mode:
@@ -266,7 +267,6 @@ python examples/voltage_sweep.py
 Counter overflow detection and adaptive measurement:
 ```bash
 python examples/overflow_demo.py
-```
 ```
 
 See the [examples README](examples/README.md) for detailed descriptions of each example.
@@ -395,7 +395,7 @@ The repository includes a `winpy` helper script that wraps Windows Python for co
 
 ## License
 
-MIT License - see LICENSE file for details
+GNU General Public License v3.0 - see LICENSE file for details
 
 ## Contributing
 
@@ -421,7 +421,7 @@ uv run mypy pycd48/ tests/
 **Code Formatting:**
 ```bash
 uv run black pycd48/ tests/
-uv run flake8 pycd48/ tests/
+uv run ruff check pycd48/ tests/
 ```
 
 **Pre-commit Hooks:**
@@ -436,7 +436,7 @@ The project uses:
 - Function overloads for precise type inference
 - Mypy for static type checking
 - Black for code formatting
-- Flake8 for linting
+- Ruff for linting
 
 ## Use Cases
 

@@ -18,13 +18,13 @@ pytest tests/ -v --cov=pycd48
 ### 2. Continuous Integration/Deployment ✓
 - **GitHub Actions**: `.github/workflows/ci.yml`
   - Tests on multiple OS (Ubuntu, Windows, macOS)
-  - Tests on multiple Python versions (3.7-3.11)
+  - Tests on multiple Python versions (3.10-3.13)
   - Automated code quality checks
   - Coverage reporting to Codecov
 
 ### 3. Code Quality Tools ✓
 - **Black**: Automatic code formatting
-- **Flake8**: Linting and style checking
+- **Ruff**: Fast linting and style checking
 - **MyPy**: Static type checking
 - **Pre-commit hooks**: Automatic checks before commits
 
@@ -37,7 +37,7 @@ pre-commit install
 **Manual code quality checks:**
 ```bash
 black pycd48/ tests/
-flake8 pycd48/ tests/
+ruff check pycd48/ tests/
 mypy pycd48/
 ```
 
@@ -56,17 +56,18 @@ pycd48/
 │   └── ISSUE_TEMPLATE/   # Issue templates
 ├── pycd48/              # Main package
 │   ├── __init__.py
-│   └── cd48.py          # Core implementation
+│   ├── cd48.py          # Core implementation
+│   ├── logging.py       # Logging utilities
+│   ├── plotting.py      # Visualization support
+│   └── py.typed         # PEP 561 marker
 ├── examples/            # Example scripts
 ├── tests/               # Unit tests
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
 ├── LICENSE
-├── setup.py
-├── pyproject.toml       # Modern Python packaging
-├── requirements.txt
-└── requirements-dev.txt
+├── pyproject.toml       # Modern Python packaging (uv/pip)
+└── uv.lock              # Dependency lock file
 ```
 
 ### 6. Version Control ✓
@@ -76,9 +77,9 @@ pycd48/
 - **Pull requests**: Template-based workflow
 
 ### 7. Dependency Management ✓
-- **requirements.txt**: Production dependencies
-- **requirements-dev.txt**: Development dependencies
-- **pyproject.toml**: Modern dependency specification
+- **pyproject.toml**: Modern dependency specification with optional extras
+- **uv.lock**: Deterministic dependency locking
+- **uv sync**: Fast, reliable dependency installation
 - **Version pinning**: Minimum versions specified
 
 ### 8. Issue and PR Templates ✓
@@ -90,23 +91,7 @@ pycd48/
 
 ### Future Enhancements
 
-#### 1. **Type Hints** (Recommended)
-Add comprehensive type hints to all functions:
-
-```python
-from typing import Dict, List, Union, Optional
-
-def get_counts(self, human_readable: bool = True) -> Union[str, Dict[str, any]]:
-    """Get counts with type hints."""
-    ...
-```
-
-**Benefits:**
-- Better IDE autocomplete
-- Catch type errors early
-- Self-documenting code
-
-#### 2. **Improved Error Handling**
+#### 1. **Improved Error Handling**
 Enhance error handling with custom exceptions:
 
 ```python
@@ -123,7 +108,7 @@ class CD48CommandError(CD48Error):
     pass
 ```
 
-#### 3. **Logging**
+#### 2. **Logging**
 Add structured logging instead of print statements:
 
 ```python
@@ -136,7 +121,7 @@ def _send_command(self, command):
     # ...
 ```
 
-#### 4. **Configuration Files**
+#### 3. **Configuration Files**
 Support configuration files for common setups:
 
 ```python
@@ -152,12 +137,12 @@ channels:
 trigger_level: 0.5
 ```
 
-#### 5. **Performance Optimization**
+#### 4. **Performance Optimization**
 - Profile code to identify bottlenecks
 - Consider async I/O for multiple devices
 - Optimize data collection loops
 
-#### 6. **Documentation Site**
+#### 5. **Documentation Site**
 Use Sphinx to generate documentation website:
 
 ```bash
@@ -167,7 +152,7 @@ sphinx-quickstart
 make html
 ```
 
-#### 7. **Package Distribution**
+#### 6. **Package Distribution**
 Publish to PyPI for easy installation:
 
 ```bash
@@ -180,7 +165,7 @@ Then users can install with:
 pip install pycd48
 ```
 
-#### 8. **Integration Tests**
+#### 7. **Integration Tests**
 Add integration tests with actual hardware:
 
 ```python
@@ -192,7 +177,7 @@ def test_real_device_connection():
     assert cd48.get_version() is not None
 ```
 
-#### 9. **Benchmarking**
+#### 8. **Benchmarking**
 Add performance benchmarks:
 
 ```python
@@ -204,7 +189,7 @@ def test_count_acquisition_speed(benchmark):
     assert result is not None
 ```
 
-#### 10. **Security**
+#### 9. **Security**
 - Add security policy (SECURITY.md)
 - Use Dependabot for dependency updates
 - Regular security audits
@@ -214,9 +199,8 @@ def test_count_acquisition_speed(benchmark):
 ### For Contributors
 
 1. **Fork and clone** the repository
-2. **Create virtual environment**
-3. **Install dev dependencies**: `pip install -r requirements-dev.txt`
-4. **Install pre-commit hooks**: `pre-commit install`
+2. **Install dev dependencies**: `uv sync --extra dev` (or `pip install -e ".[dev]"`)
+3. **Install pre-commit hooks**: `pre-commit install`
 5. **Create feature branch**: `git checkout -b feature/new-feature`
 6. **Make changes** following style guide
 7. **Write tests** for new code
@@ -243,17 +227,17 @@ def test_count_acquisition_speed(benchmark):
 - ✅ Unit tests with mocking
 - ✅ CI/CD pipeline
 - ✅ Code formatting (Black)
-- ✅ Linting (Flake8)
+- ✅ Linting (Ruff)
 - ✅ Type checking (MyPy)
 - ✅ Documentation
-- ⏳ Type hints (partial)
+- ✅ Type hints (comprehensive)
 - ⏳ Test coverage >80%
 - ⏳ Integration tests
 
 ### Goals
 - 🎯 >90% test coverage
 - 🎯 100% type hint coverage
-- 🎯 Zero flake8 warnings
+- 🎯 Zero ruff warnings
 - 🎯 MyPy strict mode compliance
 - 🎯 Published on PyPI
 
@@ -283,7 +267,7 @@ black pycd48/ tests/ examples/
 black --check pycd48/
 
 # Lint code
-flake8 pycd48/ tests/
+ruff check pycd48/ tests/
 
 # Type check
 mypy pycd48/
@@ -294,14 +278,14 @@ pre-commit run --all-files
 
 ### Development
 ```bash
-# Install in development mode
-pip install -e .
+# Using uv (recommended)
+uv sync --extra dev
 
-# Install with dev dependencies
+# Or using pip
 pip install -e ".[dev]"
 
 # Update dependencies
-pip install --upgrade -r requirements-dev.txt
+uv lock --upgrade
 ```
 
 ## 📚 Resources
@@ -321,7 +305,7 @@ This project now follows modern Python best practices:
 1. ✅ **Tested**: Comprehensive unit tests
 2. ✅ **Automated**: CI/CD pipeline
 3. ✅ **Formatted**: Black code style
-4. ✅ **Linted**: Flake8 compliance
+4. ✅ **Linted**: Ruff compliance
 5. ✅ **Typed**: MyPy checked
 6. ✅ **Documented**: README, CONTRIBUTING, examples
 7. ✅ **Versioned**: CHANGELOG and semantic versioning

@@ -24,8 +24,8 @@ jobs:
     - name: Run black (code formatting check)
       run: uv run black --check pycd48/ tests/
 
-    - name: Run flake8 (linting)
-      run: uv run flake8 pycd48/ tests/ --max-line-length=100 --extend-ignore=E203,W503
+    - name: Run ruff (linting)
+      run: uv run ruff check pycd48/ tests/
 
     - name: Run mypy (type checking)
       run: uv run mypy pycd48/ --ignore-missing-imports

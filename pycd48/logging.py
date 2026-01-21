@@ -7,9 +7,10 @@ Provides CSV and JSON logging for long-term data collection.
 import csv
 import json
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING, TextIO, Callable
+from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
     from .cd48 import CD48
@@ -40,8 +41,8 @@ class DataLogger:
 
     def __init__(
         self,
-        filename: Union[str, Path],
-        channels: Optional[List[int]] = None,
+        filename: str | Path,
+        channels: list[int] | None = None,
         include_timestamp: bool = True,
     ):
         """
@@ -64,9 +65,9 @@ class DataLogger:
         if self.format not in (".csv", ".json"):
             raise ValueError(f"Unsupported format: {self.format}. Use .csv or .json")
 
-        self._file: Optional[TextIO] = None
-        self._writer: Optional[Any] = None  # csv.writer type is complex
-        self._json_data: List[Dict[str, Any]] = []
+        self._file: TextIO | None = None
+        self._writer: Any | None = None  # csv.writer type is complex
+        self._json_data: list[dict[str, Any]] = []
         self._start_time = time.time()
 
         self._open()
@@ -74,7 +75,7 @@ class DataLogger:
     def _open(self) -> None:
         """Open file for writing."""
         if self.format == ".csv":
-            self._file = open(self.filename, "w", newline="")
+            self._file = open(self.filename, "w", newline="")  # noqa: SIM115
             headers = []
             if self.include_timestamp:
                 headers.extend(["timestamp", "elapsed_seconds"])
@@ -85,9 +86,9 @@ class DataLogger:
 
     def log(
         self,
-        counts: List[int],
-        overflow: Optional[int] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        counts: list[int],
+        overflow: int | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         """
         Log a measurement.
@@ -105,7 +106,7 @@ class DataLogger:
         elapsed = now - self._start_time
 
         if self.format == ".csv":
-            row: List[Any] = []
+            row: list[Any] = []
             if self.include_timestamp:
                 row.append(datetime.now().isoformat())
                 row.append(f"{elapsed:.{TIME_PRECISION_DECIMALS}f}")
@@ -115,7 +116,7 @@ class DataLogger:
             if self._file:
                 self._file.flush()
         else:
-            entry: Dict[str, Any] = {}
+            entry: dict[str, Any] = {}
             if self.include_timestamp:
                 entry["timestamp"] = datetime.now().isoformat()
                 entry["elapsed_seconds"] = round(elapsed, TIME_PRECISION_DECIMALS)
@@ -145,11 +146,11 @@ class DataLogger:
 
 def log_continuous(
     cd48: "CD48",
-    filename: Union[str, Path],
+    filename: str | Path,
     duration: float,
     interval: float = 1.0,
-    channels: Optional[List[int]] = None,
-    callback: Optional[Callable[[List[int], float], None]] = None,
+    channels: list[int] | None = None,
+    callback: Callable[[list[int], float], None] | None = None,
 ) -> Path:
     """
     Log continuous measurements to file.
