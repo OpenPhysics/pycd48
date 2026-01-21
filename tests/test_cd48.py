@@ -5,11 +5,13 @@ These tests mock the serial communication to test the CD48 interface
 without requiring actual hardware.
 """
 
-from typing import List, cast
 import unittest
-from unittest.mock import Mock, MagicMock, patch
+from typing import cast
+from unittest.mock import MagicMock, Mock, patch
+
 import serial
-from pycd48 import CD48, CD48Error, CD48ParseError, CD48DeviceNotFoundError
+
+from pycd48 import CD48, CD48DeviceNotFoundError, CD48Error, CD48ParseError
 
 
 class TestCD48(unittest.TestCase):
@@ -89,7 +91,7 @@ class TestCD48(unittest.TestCase):
 
         self.assertIsInstance(result, dict)
         assert isinstance(result, dict)  # Type narrowing for mypy
-        counts = cast(List[int], result["counts"])
+        counts = cast(list[int], result["counts"])
         self.assertEqual(len(counts), 8)
         self.assertEqual(counts[0], 100)
         self.assertEqual(counts[4], 50)

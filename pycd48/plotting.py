@@ -5,7 +5,7 @@ Provides matplotlib-based visualization for count rates.
 """
 
 import time
-from typing import Optional, List, TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .cd48 import CD48
@@ -16,7 +16,7 @@ _FuncAnimation = None
 
 # Plotting defaults and constants
 # Default channels to plot: A, B, and A+B coincidence
-DEFAULT_PLOT_CHANNELS: List[int] = [0, 1, 4]
+DEFAULT_PLOT_CHANNELS: list[int] = [0, 1, 4]
 # Default maximum number of historical data points to display
 DEFAULT_MAX_POINTS: int = 100
 # Default measurement/update interval in seconds
@@ -58,7 +58,7 @@ class RatePlotter:
     def __init__(
         self,
         cd48: "CD48",
-        channels: Optional[List[int]] = None,
+        channels: list[int] | None = None,
         max_points: int = DEFAULT_MAX_POINTS,
         interval: float = DEFAULT_UPDATE_INTERVAL,
     ):
@@ -83,14 +83,14 @@ class RatePlotter:
         self.max_points = max_points
         self.interval = interval
 
-        self._times: List[float] = []
-        self._rates: Dict[int, List[float]] = {ch: [] for ch in self.channels}
+        self._times: list[float] = []
+        self._rates: dict[int, list[float]] = {ch: [] for ch in self.channels}
         self._start_time: float = 0
 
-        self._fig: Optional[Any] = None
-        self._ax: Optional[Any] = None
-        self._lines: Dict[int, Any] = {}
-        self._animation: Optional[Any] = None
+        self._fig: Any | None = None
+        self._ax: Any | None = None
+        self._lines: dict[int, Any] = {}
+        self._animation: Any | None = None
 
     def _init_plot(self):
         """Initialize the plot."""
@@ -152,7 +152,7 @@ class RatePlotter:
 
         return list(self._lines.values())
 
-    def run(self, duration: Optional[float] = None):
+    def run(self, duration: float | None = None):
         """
         Start the real-time plot.
 
@@ -219,7 +219,7 @@ class RatePlotter:
 def plot_rates(
     cd48: "CD48",
     duration: float = 60,
-    channels: Optional[List[int]] = None,
+    channels: list[int] | None = None,
     interval: float = 1.0,
 ):
     """

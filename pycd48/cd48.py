@@ -5,12 +5,13 @@ This module provides a Python interface for the Red Dog Physics CD48
 Coincidence Counter using PySerial for USB communication.
 """
 
-from typing import Optional, List, overload, Literal, TypedDict, Type
-from types import TracebackType
 import logging
+import time
+from types import TracebackType
+from typing import Literal, TypedDict, overload
+
 import serial
 import serial.tools.list_ports
-import time
 
 
 class CD48Error(Exception):
@@ -34,7 +35,7 @@ class CD48DeviceNotFoundError(CD48Error):
 class CountsDict(TypedDict):
     """Type definition for parsed counts data."""
 
-    counts: List[int]
+    counts: list[int]
     overflow: int
 
 
@@ -106,10 +107,10 @@ class CD48:
 
     def __init__(
         self,
-        port: Optional[str] = None,
+        port: str | None = None,
         baudrate: int = DEFAULT_BAUDRATE,
         timeout: float = DEFAULT_TIMEOUT,
-        init_delay: Optional[float] = None,
+        init_delay: float | None = None,
     ) -> None:
         """
         Initialize connection to CD48
@@ -469,8 +470,8 @@ class CD48:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         self.close()
