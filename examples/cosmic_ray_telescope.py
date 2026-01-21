@@ -179,7 +179,7 @@ def main() -> None:
         detector_area = 0.01  # m²
         muon_flux = true_coinc_AB / detector_area
         print(f"Estimated Muon Flux: {muon_flux:.1f} muons/(m²·s)")
-        print(f"  (Typical sea level: ~100 muons/(m²·s))")
+        print("  (Typical sea level: ~100 muons/(m²·s))")
         print()
 
         # Create visualization

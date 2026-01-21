@@ -10,7 +10,7 @@ This is useful for:
 - Setting consistent trigger levels across multiple detectors
 """
 
-from typing import Dict, Tuple, List, Sequence
+from typing import Dict, Tuple, List
 import time
 import numpy as np
 import numpy.typing as npt

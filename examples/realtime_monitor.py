@@ -12,7 +12,6 @@ This is useful for:
 """
 
 import time
-import sys
 from pycd48 import CD48
 
 
@@ -49,7 +48,8 @@ def main() -> None:
         print("Real-time monitoring started (Ctrl+C to stop)")
         print()
         print(
-            f"{'Time':<12} {'Ch A':<10} {'Ch B':<10} {'A-B':<10} {'Rate A (Hz)':<12} {'Rate B (Hz)':<12}"
+            f"{'Time':<12} {'Ch A':<10} {'Ch B':<10} {'A-B':<10} "
+            f"{'Rate A (Hz)':<12} {'Rate B (Hz)':<12}"
         )
         print("-" * 80)
 
@@ -88,10 +88,11 @@ def main() -> None:
                         # Show overflow warning if needed
                         if data["overflow"]:
                             print(
-                                f"  ⚠️  WARNING: Counter overflow detected! (0x{data['overflow']:02X})"
+                                f"  ⚠️  WARNING: Counter overflow detected! "
+                                f"(0x{data['overflow']:02X})"
                             )
 
-                    except Exception as e:
+                    except Exception:
                         # Just skip malformed lines
                         pass
 

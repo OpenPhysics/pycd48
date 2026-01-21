@@ -79,7 +79,7 @@ def main() -> None:
         accidental_rate = counts_A.mean() * counts_B.mean() * 2 * tau
         true_coincidences = coincidences.mean() - accidental_rate
 
-        print(f"\nCoincidence Analysis:")
+        print("\nCoincidence Analysis:")
         print(f"  Measured coincidence rate:  {coincidences.mean():8.2f} counts/s")
         print(f"  Expected accidental rate:   {accidental_rate:8.2f} counts/s")
         print(f"  True coincidence rate:      {true_coincidences:8.2f} counts/s")

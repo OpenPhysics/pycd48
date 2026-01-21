@@ -28,7 +28,6 @@ import time
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
-from scipy import stats
 from pycd48 import CD48
 
 
@@ -375,7 +374,7 @@ def main() -> None:
         num_samples = 30  # Number of measurements
         interval = 2.0  # Integration time per measurement (seconds)
 
-        print(f"Measurement parameters:")
+        print("Measurement parameters:")
         print(f"  Number of samples: {num_samples}")
         print(f"  Integration time: {interval}s per sample")
         print(f"  Total time: ~{num_samples * interval:.0f}s")

@@ -15,7 +15,6 @@ from types import FrameType
 import time
 import csv
 import signal
-import sys
 from datetime import datetime
 from pathlib import Path
 from pycd48 import CD48
@@ -175,7 +174,7 @@ class DataLogger:
         finally:
             print()
             print("=" * 60)
-            print(f"Data logging completed")
+            print("Data logging completed")
             print(f"  Total measurements: {measurement_count}")
             print(f"  Total time: {time.time() - start_time:.1f}s")
             print(f"  Output file: {filename}")
@@ -199,7 +198,7 @@ def main() -> None:
     if DURATION:
         print(f"  Duration: {DURATION}s ({DURATION/60:.1f} minutes)")
     else:
-        print(f"  Duration: Continuous (press Ctrl+C to stop)")
+        print("  Duration: Continuous (press Ctrl+C to stop)")
     print(f"  Display update: Every {DISPLAY_INTERVAL} measurements")
     print()
 

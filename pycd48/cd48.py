@@ -200,7 +200,7 @@ class CD48:
             parts = response.split()
             if len(parts) >= self.NUM_CHANNELS + 1:
                 try:
-                    counts = [int(x) for x in parts[:self.NUM_CHANNELS]]
+                    counts = [int(x) for x in parts[: self.NUM_CHANNELS]]
                     overflow = int(parts[self.NUM_CHANNELS])
                     return {"counts": counts, "overflow": overflow}
                 except ValueError as e:
@@ -289,7 +289,9 @@ class CD48:
         interval_ms : int
             Reporting interval in milliseconds (100-65535)
         """
-        interval_ms = max(self.REPEAT_INTERVAL_MIN_MS, min(self.REPEAT_INTERVAL_MAX_MS, interval_ms))
+        interval_ms = max(
+            self.REPEAT_INTERVAL_MIN_MS, min(self.REPEAT_INTERVAL_MAX_MS, interval_ms)
+        )
         return self._send_command(f"r{interval_ms}")
 
     def toggle_repeat(self) -> str:
