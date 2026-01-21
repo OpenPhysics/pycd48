@@ -207,6 +207,12 @@ class CD48:
                     raise CD48ParseError(f"Failed to parse counts response: {response}") from e
             raise CD48ParseError(f"Unexpected response format: {response}")
 
+    @overload
+    def read_and_clear_counts(self, human_readable: Literal[True] = True) -> str: ...
+
+    @overload
+    def read_and_clear_counts(self, human_readable: Literal[False]) -> CountsDict: ...
+
     def read_and_clear_counts(self, human_readable: bool = True) -> str | CountsDict:
         """
         Read current counts and clear counters (explicit alias for get_counts).
@@ -223,7 +229,10 @@ class CD48:
         --------
         str or dict : Raw response string or parsed dict with counts and overflow
         """
-        return self.get_counts(human_readable=human_readable)
+        if human_readable:
+            return self.get_counts(human_readable=True)
+        else:
+            return self.get_counts(human_readable=False)
 
     def clear_counts(self) -> None:
         """Clear all counters by reading and discarding the values."""
