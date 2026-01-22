@@ -1,0 +1,56 @@
+# Voltage Sweep Experiment
+#
+# Automated voltage sweep using the CD48's DAC output.
+# Connect the DAC output to your external equipment
+# (e.g., PMT power supply control input).
+#
+# Use this for:
+#   - PMT high voltage optimization
+#   - Finding optimal operating points
+#   - Voltage-dependent measurements
+#   - Detector characterization
+
+name: voltage_sweep
+description: DAC voltage sweep for detector optimization
+
+# Device connection settings
+connection:
+  baudrate: 115200
+  timeout: 1.0
+
+# Device configuration
+settings:
+  trigger_level: 0.5  # volts
+  impedance: 50ohm
+
+  channels:
+    "0":  # Singles A
+      A: 1
+      B: 0
+      C: 0
+      D: 0
+    "1":  # Singles B
+      A: 0
+      B: 1
+      C: 0
+      D: 0
+    "4":  # A-B coincidences
+      A: 1
+      B: 1
+      C: 0
+      D: 0
+
+# Experiment parameters
+experiment:
+  type: voltage_sweep
+  voltage_min: 0.0   # volts
+  voltage_max: 4.0   # volts
+  voltage_steps: 20  # Number of voltage points
+  measurement_time: 5.0  # seconds per voltage point
+  channels: [0, 1, 4]  # Channels to monitor
+
+# Output settings
+output:
+  directory: ./data
+  csv: true
+  json: true

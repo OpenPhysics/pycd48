@@ -24,6 +24,7 @@ from .cd48 import (
     RateResult,
     ReconnectCallback,
 )
+from .experiments import ExperimentRunner, run_experiment
 from .logging import DataLogger, log_continuous
 
 try:
@@ -59,6 +60,9 @@ __all__ = [
     # Logging utilities
     "DataLogger",
     "log_continuous",
+    # Experiment utilities
+    "ExperimentRunner",
+    "run_experiment",
     # Version
     "__version__",
 ]

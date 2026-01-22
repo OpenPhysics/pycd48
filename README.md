@@ -91,6 +91,78 @@ with CD48() as cd48:
     print(f"A-B coincidences: {data['counts'][4]} counts")
 ```
 
+## YAML Configuration Support
+
+For better reproducibility and easier collaboration, you can configure experiments using YAML files:
+
+```bash
+# Install YAML support
+pip install pycd48[yaml]
+
+# Run an experiment from a YAML config
+python examples/run_yaml_experiment.py examples/configs/simple_coincidence.yaml
+```
+
+Or in Python:
+
+```python
+from pycd48 import run_experiment
+
+result = run_experiment("configs/simple_coincidence.yaml")
+print(f"Coincidence rate: {result['data']['coincidence_rate']:.2f} Hz")
+```
+
+### Example YAML Configuration
+
+```yaml
+name: simple_coincidence
+description: Basic two-detector coincidence measurement
+
+# Device connection and settings
+connection:
+  baudrate: 115200
+  timeout: 1.0
+
+settings:
+  trigger_level: 0.5  # volts
+  impedance: 50ohm
+  channels:
+    "0": {A: 1, B: 0, C: 0, D: 0}  # Singles A
+    "1": {A: 0, B: 1, C: 0, D: 0}  # Singles B
+    "4": {A: 1, B: 1, C: 0, D: 0}  # A-B coincidences
+
+# Experiment parameters
+experiment:
+  type: coincidence
+  duration: 60.0
+  singles_a_channel: 0
+  singles_b_channel: 1
+  coincidence_channel: 4
+  repeats: 5
+
+# Output settings
+output:
+  directory: ./data
+  csv: true
+  json: true
+```
+
+### Benefits
+
+- ✅ **Reproducible**: Share exact experimental parameters
+- ✅ **Version Control**: Track configuration changes in git
+- ✅ **Accessible**: Non-programmers can modify settings
+- ✅ **Self-documenting**: YAML configs are easy to read and understand
+
+### Supported Experiment Types
+
+1. **`rate`** - Single channel rate measurements
+2. **`coincidence`** - Two-detector coincidence with accidental correction
+3. **`continuous`** - Long-term continuous data collection
+4. **`voltage_sweep`** - Automated DAC voltage sweep
+
+See [examples/configs/README.md](examples/configs/README.md) for detailed documentation and more examples.
+
 ## Hardware Setup
 
 The CD48 connects via USB and appears as a virtual COM port. The device uses:
