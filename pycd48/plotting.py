@@ -4,10 +4,17 @@ Real-time plotting utilities for CD48 measurements.
 Provides matplotlib-based visualization for count rates.
 """
 
+from __future__ import annotations
+
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from matplotlib.animation import FuncAnimation
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+    from matplotlib.lines import Line2D
+
     from .cd48 import CD48
 
 # Lazy import matplotlib to avoid import errors if not installed
@@ -22,7 +29,7 @@ DEFAULT_MAX_POINTS: int = 100
 # Default measurement/update interval in seconds
 DEFAULT_UPDATE_INTERVAL: float = 1.0
 # Default figure size in inches (width, height)
-DEFAULT_FIGURE_SIZE: tuple = (10, 6)
+DEFAULT_FIGURE_SIZE: tuple[float, float] = (10, 6)
 # Grid line transparency (0=invisible, 1=opaque)
 GRID_ALPHA: float = 0.3
 # Minimum Y-axis limit in Hz to ensure visibility at low rates
@@ -33,7 +40,7 @@ Y_AXIS_SCALE_FACTOR: float = 1.1
 MS_PER_SECOND: int = 1000
 
 
-def _ensure_matplotlib():
+def _ensure_matplotlib() -> None:
     """Lazy import matplotlib."""
     global _plt, _FuncAnimation
     if _plt is None:
@@ -57,7 +64,7 @@ class RatePlotter:
 
     def __init__(
         self,
-        cd48: "CD48",
+        cd48: CD48,
         channels: list[int] | None = None,
         max_points: int = DEFAULT_MAX_POINTS,
         interval: float = DEFAULT_UPDATE_INTERVAL,
@@ -87,13 +94,14 @@ class RatePlotter:
         self._rates: dict[int, list[float]] = {ch: [] for ch in self.channels}
         self._start_time: float = 0
 
-        self._fig: Any | None = None
-        self._ax: Any | None = None
-        self._lines: dict[int, Any] = {}
-        self._animation: Any | None = None
+        self._fig: Figure | None = None
+        self._ax: Axes | None = None
+        self._lines: dict[int, Line2D] = {}
+        self._animation: FuncAnimation | None = None
 
-    def _init_plot(self):
+    def _init_plot(self) -> list[Line2D]:
         """Initialize the plot."""
+        assert _plt is not None, "Matplotlib not loaded"
         self._fig, self._ax = _plt.subplots(figsize=DEFAULT_FIGURE_SIZE)
         self._ax.set_xlabel("Time (s)")
         self._ax.set_ylabel("Count Rate (Hz)")
@@ -118,8 +126,9 @@ class RatePlotter:
         self._ax.legend(loc="upper right")
         return list(self._lines.values())
 
-    def _update(self, frame):
+    def _update(self, frame: int) -> list[Line2D]:
         """Update function for animation."""
+        assert self._ax is not None, "Plot not initialized"
         # Read counts
         data = self.cd48.get_counts(human_readable=False)
         now = time.time() - self._start_time
@@ -152,7 +161,7 @@ class RatePlotter:
 
         return list(self._lines.values())
 
-    def run(self, duration: float | None = None):
+    def run(self, duration: float | None = None) -> None:
         """
         Start the real-time plot.
 
@@ -169,6 +178,7 @@ class RatePlotter:
         if duration is not None:
             frames = int(duration / self.interval)
 
+        assert self._fig is not None, "Plot not initialized"
         if _FuncAnimation:
             self._animation = _FuncAnimation(
                 self._fig,
@@ -182,7 +192,7 @@ class RatePlotter:
         if _plt:
             _plt.show()
 
-    def save_animation(self, filename: str, duration: float, fps: int = 1):
+    def save_animation(self, filename: str, duration: float, fps: int = 1) -> None:
         """
         Save animation to file.
 
@@ -200,6 +210,7 @@ class RatePlotter:
         self.cd48.clear_counts()
 
         frames = int(duration / self.interval)
+        assert self._fig is not None, "Plot not initialized"
         if _FuncAnimation:
             self._animation = _FuncAnimation(
                 self._fig,
@@ -217,11 +228,11 @@ class RatePlotter:
 
 
 def plot_rates(
-    cd48: "CD48",
+    cd48: CD48,
     duration: float = 60,
     channels: list[int] | None = None,
     interval: float = 1.0,
-):
+) -> None:
     """
     Convenience function for real-time rate plotting.
 

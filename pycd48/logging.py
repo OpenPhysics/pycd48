@@ -4,16 +4,26 @@ Data logging utilities for CD48 measurements.
 Provides CSV and JSON logging for long-term data collection.
 """
 
+from __future__ import annotations
+
 import csv
 import json
 import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TextIO
+from types import TracebackType
+from typing import TYPE_CHECKING, Protocol, TextIO
 
 if TYPE_CHECKING:
     from .cd48 import CD48
+
+
+class _CsvWriter(Protocol):
+    """Protocol for csv.writer object."""
+
+    def writerow(self, row: list[str | int]) -> object: ...
+
 
 # Logging format constants
 # Number of CD48 channels (matches CD48.NUM_CHANNELS)
@@ -66,8 +76,8 @@ class DataLogger:
             raise ValueError(f"Unsupported format: {self.format}. Use .csv or .json")
 
         self._file: TextIO | None = None
-        self._writer: Any | None = None  # csv.writer type is complex
-        self._json_data: list[dict[str, Any]] = []
+        self._writer: _CsvWriter | None = None
+        self._json_data: list[dict[str, object]] = []
         self._start_time = time.time()
 
         self._open()
@@ -88,7 +98,7 @@ class DataLogger:
         self,
         counts: list[int],
         overflow: int | None = None,
-        extra: dict[str, Any] | None = None,
+        extra: dict[str, object] | None = None,
     ) -> None:
         """
         Log a measurement.
@@ -106,7 +116,7 @@ class DataLogger:
         elapsed = now - self._start_time
 
         if self.format == ".csv":
-            row: list[Any] = []
+            row: list[str | int] = []
             if self.include_timestamp:
                 row.append(datetime.now().isoformat())
                 row.append(f"{elapsed:.{TIME_PRECISION_DECIMALS}f}")
@@ -116,7 +126,7 @@ class DataLogger:
             if self._file:
                 self._file.flush()
         else:
-            entry: dict[str, Any] = {}
+            entry: dict[str, object] = {}
             if self.include_timestamp:
                 entry["timestamp"] = datetime.now().isoformat()
                 entry["elapsed_seconds"] = round(elapsed, TIME_PRECISION_DECIMALS)
@@ -137,15 +147,20 @@ class DataLogger:
             with open(self.filename, "w") as f:
                 json.dump(self._json_data, f, indent=JSON_INDENT_SPACES)
 
-    def __enter__(self) -> "DataLogger":
+    def __enter__(self) -> DataLogger:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
 
 
 def log_continuous(
-    cd48: "CD48",
+    cd48: CD48,
     filename: str | Path,
     duration: float,
     interval: float = 1.0,

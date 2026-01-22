@@ -5,6 +5,8 @@ A simple library for controlling the Red Dog Physics CD48 Coincidence Counter
 via USB serial interface.
 """
 
+from __future__ import annotations
+
 from importlib.metadata import PackageNotFoundError, version
 
 from .cd48 import (
