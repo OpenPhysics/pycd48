@@ -7,8 +7,11 @@ Coincidence Counter using PySerial for USB communication.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+from collections.abc import Callable
+from pathlib import Path
 from types import TracebackType
 from typing import Literal, TypedDict, overload
 
@@ -32,6 +35,23 @@ class CD48DeviceNotFoundError(CD48Error):
     """Raised when CD48 device cannot be found."""
 
     pass
+
+
+class CD48ConnectionError(CD48Error):
+    """Raised when connection to CD48 fails or is lost."""
+
+    pass
+
+
+class CD48ConfigError(CD48Error):
+    """Raised when configuration file is invalid."""
+
+    pass
+
+
+# Type aliases for callbacks
+DisconnectCallback = Callable[[], None]
+ReconnectCallback = Callable[[], None]
 
 
 class CountsDict(TypedDict):
@@ -136,10 +156,233 @@ class CD48:
         if port is None:
             port = self._find_cd48()
 
+        self._port = port
+        self._baudrate = baudrate
+        self._timeout = timeout
+
         self.ser: serial.Serial = serial.Serial(port, baudrate=baudrate, timeout=timeout)
         if self._init_delay > 0:
             time.sleep(self._init_delay)
         self.ser.reset_input_buffer()
+
+    @classmethod
+    def from_config(
+        cls,
+        config_path: str | Path,
+        apply_settings: bool = True,
+    ) -> CD48:
+        """
+        Create a CD48 instance from a configuration file.
+
+        Supports both JSON and YAML configuration files. YAML support requires
+        the PyYAML package to be installed.
+
+        Parameters:
+        -----------
+        config_path : str or Path
+            Path to the configuration file (.json or .yaml/.yml)
+        apply_settings : bool
+            If True, apply device settings from config after connecting (default True)
+
+        Returns:
+        --------
+        CD48 : Configured CD48 instance
+
+        Configuration file format:
+        --------------------------
+        {
+            "connection": {
+                "port": "/dev/ttyUSB0",  // optional, auto-detect if not specified
+                "baudrate": 115200,       // optional, default 115200
+                "timeout": 1.0,           // optional, default 1.0
+                "init_delay": 2.0         // optional, default 2.0
+            },
+            "settings": {
+                "trigger_level": 1.5,     // voltage in V
+                "impedance": "50ohm",     // "50ohm" or "highz"
+                "dac_voltage": 2.0,       // voltage in V
+                "channels": {
+                    "0": {"A": 1, "B": 0, "C": 0, "D": 0},
+                    "4": {"A": 1, "B": 1, "C": 0, "D": 0}
+                }
+            }
+        }
+
+        Raises:
+        -------
+        CD48ConfigError
+            If configuration file is invalid or cannot be parsed
+        FileNotFoundError
+            If configuration file does not exist
+        """
+        config_path = Path(config_path)
+
+        if not config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+
+        config = cls._load_config_file(config_path)
+
+        # Extract connection settings
+        connection_raw = config.get("connection", {})
+        connection = connection_raw if isinstance(connection_raw, dict) else {}
+
+        port_val = connection.get("port")
+        port: str | None = str(port_val) if port_val is not None else None
+
+        baudrate_val = connection.get("baudrate", cls.DEFAULT_BAUDRATE)
+        baudrate: int = (
+            int(baudrate_val) if isinstance(baudrate_val, (int, float)) else cls.DEFAULT_BAUDRATE
+        )
+
+        timeout_val = connection.get("timeout", cls.DEFAULT_TIMEOUT)
+        timeout: float = (
+            float(timeout_val) if isinstance(timeout_val, (int, float)) else cls.DEFAULT_TIMEOUT
+        )
+
+        init_delay_val = connection.get("init_delay")
+        init_delay: float | None = (
+            float(init_delay_val) if isinstance(init_delay_val, (int, float)) else None
+        )
+
+        # Create instance
+        instance = cls(
+            port=port,
+            baudrate=baudrate,
+            timeout=timeout,
+            init_delay=init_delay,
+        )
+
+        # Apply device settings if requested
+        if apply_settings:
+            settings_raw = config.get("settings", {})
+            settings = settings_raw if isinstance(settings_raw, dict) else {}
+            instance._apply_config_settings(settings)
+
+        return instance
+
+    @staticmethod
+    def _load_config_file(config_path: Path) -> dict[str, object]:
+        """Load configuration from JSON or YAML file."""
+        suffix = config_path.suffix.lower()
+
+        with open(config_path, encoding="utf-8") as f:
+            if suffix == ".json":
+                try:
+                    result: dict[str, object] = json.load(f)
+                    return result
+                except json.JSONDecodeError as e:
+                    raise CD48ConfigError(f"Invalid JSON in config file: {e}") from e
+            elif suffix in (".yaml", ".yml"):
+                try:
+                    import yaml  # type: ignore[import-untyped]
+                except ImportError as e:
+                    raise CD48ConfigError(
+                        "PyYAML is required for YAML config files. "
+                        "Install with: pip install pyyaml"
+                    ) from e
+                try:
+                    result = yaml.safe_load(f)
+                    return result if result is not None else {}
+                except yaml.YAMLError as e:
+                    raise CD48ConfigError(f"Invalid YAML in config file: {e}") from e
+            else:
+                raise CD48ConfigError(
+                    f"Unsupported config file format: {suffix}. Use .json or .yaml/.yml"
+                )
+
+    def _apply_config_settings(self, settings: dict[str, object]) -> None:
+        """Apply device settings from configuration."""
+        # Set trigger level
+        if "trigger_level" in settings:
+            trigger = settings["trigger_level"]
+            if isinstance(trigger, (int, float)):
+                self.set_trigger_level(float(trigger))
+
+        # Set impedance
+        if "impedance" in settings:
+            impedance = settings["impedance"]
+            if impedance == "50ohm":
+                self.set_impedance_50ohm()
+            elif impedance == "highz":
+                self.set_impedance_highz()
+            else:
+                self._logger.warning(f"Unknown impedance setting: {impedance}")
+
+        # Set DAC voltage
+        if "dac_voltage" in settings:
+            dac = settings["dac_voltage"]
+            if isinstance(dac, (int, float)):
+                self.set_dac_voltage(float(dac))
+
+        # Configure channels
+        if "channels" in settings:
+            channels = settings["channels"]
+            if isinstance(channels, dict):
+                for ch_str, ch_config in channels.items():
+                    try:
+                        ch_num = int(ch_str)
+                        if isinstance(ch_config, dict):
+                            self.set_channel(
+                                ch_num,
+                                A=int(ch_config.get("A", 0)),
+                                B=int(ch_config.get("B", 0)),
+                                C=int(ch_config.get("C", 0)),
+                                D=int(ch_config.get("D", 0)),
+                            )
+                    except (ValueError, TypeError) as e:
+                        self._logger.warning(f"Invalid channel config {ch_str}: {e}")
+
+    @property
+    def is_connected(self) -> bool:
+        """Return True if connected to the device."""
+        return self.ser is not None and self.ser.is_open
+
+    @property
+    def port(self) -> str | None:
+        """Return the serial port name."""
+        return self._port
+
+    def reconnect(self, init_delay: float | None = None) -> None:
+        """
+        Reconnect to the CD48 device.
+
+        Closes the existing connection and establishes a new one.
+        Useful for recovering from connection errors or device resets.
+
+        Parameters:
+        -----------
+        init_delay : float, optional
+            Device initialization delay in seconds. If None, uses 0 (skip delay)
+            since device should already be initialized.
+
+        Raises:
+        -------
+        CD48DeviceNotFoundError
+            If the device cannot be found
+        CD48ConnectionError
+            If reconnection fails
+        """
+        # Close existing connection
+        try:
+            if self.ser is not None and self.ser.is_open:
+                self.ser.close()
+        except Exception:
+            pass  # Ignore errors when closing broken connection
+
+        # Determine port
+        port = self._port if self._port is not None else self._find_cd48()
+
+        # Reconnect with minimal delay (device already initialized)
+        delay = init_delay if init_delay is not None else 0
+
+        try:
+            self.ser = serial.Serial(port, baudrate=self._baudrate, timeout=self._timeout)
+            if delay > 0:
+                time.sleep(delay)
+            self.ser.reset_input_buffer()
+            self._logger.info(f"Reconnected to CD48 on {port}")
+        except serial.SerialException as e:
+            raise CD48ConnectionError(f"Failed to reconnect to CD48: {e}") from e
 
     def _find_cd48(self) -> str:
         """Attempt to auto-detect CD48 on serial ports"""
@@ -477,3 +720,121 @@ class CD48:
         exc_tb: TracebackType | None,
     ) -> None:
         self.close()
+
+
+class CD48WithReconnect(CD48):
+    """CD48 with automatic reconnection support.
+
+    This class extends CD48 with automatic reconnection when the device
+    disconnects unexpectedly. Useful for long-running experiments where
+    USB connections may be temporarily lost.
+
+    Example:
+    --------
+    >>> def on_disconnect():
+    ...     print("Device disconnected!")
+    >>> def on_reconnect():
+    ...     print("Device reconnected!")
+    >>> with CD48WithReconnect(
+    ...     on_disconnect=on_disconnect,
+    ...     on_reconnect=on_reconnect
+    ... ) as cd48:
+    ...     result = cd48.measure_rate(channel=0, duration=1.0)
+    """
+
+    def __init__(
+        self,
+        port: str | None = None,
+        baudrate: int = CD48.DEFAULT_BAUDRATE,
+        timeout: float = CD48.DEFAULT_TIMEOUT,
+        init_delay: float | None = None,
+        auto_reconnect: bool = True,
+        reconnect_delay: float = 1.0,
+        max_reconnect_attempts: int = 5,
+        on_disconnect: DisconnectCallback | None = None,
+        on_reconnect: ReconnectCallback | None = None,
+    ) -> None:
+        """
+        Initialize CD48 with reconnection support.
+
+        Parameters:
+        -----------
+        port : str, optional
+            Serial port name
+        baudrate : int
+            Communication speed (default 115200)
+        timeout : float
+            Read timeout in seconds
+        init_delay : float, optional
+            Device initialization delay in seconds
+        auto_reconnect : bool
+            If True, automatically attempt to reconnect on disconnect (default True)
+        reconnect_delay : float
+            Delay between reconnection attempts in seconds (default 1.0)
+        max_reconnect_attempts : int
+            Maximum number of reconnection attempts (default 5)
+        on_disconnect : callable, optional
+            Callback function called when device disconnects
+        on_reconnect : callable, optional
+            Callback function called when device reconnects
+        """
+        super().__init__(port, baudrate, timeout, init_delay)
+        self._auto_reconnect = auto_reconnect
+        self._reconnect_delay = reconnect_delay
+        self._max_reconnect_attempts = max_reconnect_attempts
+        self._on_disconnect = on_disconnect
+        self._on_reconnect = on_reconnect
+
+    def _handle_disconnect(self) -> None:
+        """Handle device disconnection."""
+        if self._on_disconnect is not None:
+            self._on_disconnect()
+        self._logger.warning("CD48 device disconnected")
+
+    def try_reconnect(self) -> bool:
+        """
+        Attempt to reconnect to the device with retries.
+
+        Uses exponential backoff between attempts.
+
+        Returns:
+        --------
+        bool : True if reconnection successful, False otherwise
+        """
+        for attempt in range(1, self._max_reconnect_attempts + 1):
+            self._logger.info(f"Reconnection attempt {attempt}/{self._max_reconnect_attempts}")
+
+            try:
+                self.reconnect()
+
+                if self._on_reconnect is not None:
+                    self._on_reconnect()
+
+                return True
+
+            except (CD48DeviceNotFoundError, CD48ConnectionError, OSError) as e:
+                self._logger.warning(f"Reconnection attempt {attempt} failed: {e}")
+                if attempt < self._max_reconnect_attempts:
+                    time.sleep(self._reconnect_delay * attempt)  # Exponential backoff
+
+        self._logger.error(f"Failed to reconnect after {self._max_reconnect_attempts} attempts")
+        return False
+
+    def _send_command(self, command: str) -> str:
+        """Send command with automatic reconnection on failure."""
+        try:
+            return super()._send_command(command)
+        except (OSError, serial.SerialException) as e:
+            if not self._auto_reconnect:
+                raise CD48ConnectionError(f"Command failed: {e}") from e
+
+            self._handle_disconnect()
+            if self.try_reconnect():
+                # Retry command after reconnection
+                try:
+                    return super()._send_command(command)
+                except (OSError, serial.SerialException) as retry_error:
+                    raise CD48ConnectionError(
+                        f"Command failed after reconnection: {retry_error}"
+                    ) from retry_error
+            raise CD48ConnectionError(f"Command failed and reconnection unsuccessful: {e}") from e
