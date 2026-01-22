@@ -378,5 +378,175 @@ class TestCD48Exceptions(unittest.TestCase):
         self.assertEqual(str(not_found_error), "device not found")
 
 
+class TestCD48FullCoverage(unittest.TestCase):
+    """Additional tests for 100% coverage."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        self.mock_serial: Mock = Mock(spec=serial.Serial)
+        self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+
+    @patch("serial.Serial")
+    def test_clear_counts(self, mock_serial_class: MagicMock) -> None:
+        """Test clear_counts method."""
+        self.mock_serial.read_all.return_value = b"100 200 300 400 50 25 10 5 0\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        cd48.clear_counts()
+
+        # Should have sent the 'c' command
+        self.mock_serial.write.assert_called_with(b"c\r")
+
+    @patch("serial.Serial")
+    def test_get_counts_human_readable(self, mock_serial_class: MagicMock) -> None:
+        """Test get_counts with human_readable=True."""
+        self.mock_serial.read_all.return_value = b"Formatted output\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.get_counts(human_readable=True)
+
+        self.mock_serial.write.assert_called_with(b"C\r")
+        self.assertEqual(result, "Formatted output")
+
+    @patch("serial.Serial")
+    def test_read_and_clear_counts_human_readable_true(self, mock_serial_class: MagicMock) -> None:
+        """Test read_and_clear_counts with human_readable=True."""
+        self.mock_serial.read_all.return_value = b"Formatted output\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.read_and_clear_counts(human_readable=True)
+
+        self.mock_serial.write.assert_called_with(b"C\r")
+        self.assertEqual(result, "Formatted output")
+
+    @patch("serial.Serial")
+    def test_read_and_clear_counts_human_readable_false(self, mock_serial_class: MagicMock) -> None:
+        """Test read_and_clear_counts with human_readable=False."""
+        self.mock_serial.read_all.return_value = b"100 200 300 400 50 25 10 5 0\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+        result = cd48.read_and_clear_counts(human_readable=False)
+
+        self.mock_serial.write.assert_called_with(b"c\r")
+        assert isinstance(result, dict)
+        self.assertEqual(result["counts"][0], 100)
+        self.assertEqual(result["overflow"], 0)
+
+    @patch("time.sleep")
+    @patch("serial.Serial")
+    def test_measure_rate(self, mock_serial_class: MagicMock, mock_sleep: MagicMock) -> None:
+        """Test measure_rate method."""
+        self.mock_serial.read_all.return_value = b"1000 200 300 400 50 25 10 5 0\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0)
+        result = cd48.measure_rate(channel=0, duration=1.0)
+
+        self.assertEqual(result["counts"], 1000)
+        self.assertEqual(result["duration"], 1.0)
+        self.assertEqual(result["rate"], 1000.0)
+        self.assertEqual(result["channel"], 0)
+
+    @patch("serial.Serial")
+    def test_measure_rate_invalid_channel(self, mock_serial_class: MagicMock) -> None:
+        """Test measure_rate with invalid channel raises ValueError."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0")
+
+        with self.assertRaises(ValueError) as context:
+            cd48.measure_rate(channel=8, duration=1.0)
+        self.assertIn("Channel must be 0-7", str(context.exception))
+
+        with self.assertRaises(ValueError) as context:
+            cd48.measure_rate(channel=-1, duration=1.0)
+        self.assertIn("Channel must be 0-7", str(context.exception))
+
+    @patch("time.sleep")
+    @patch("serial.Serial")
+    def test_measure_coincidence_rate(
+        self, mock_serial_class: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test measure_coincidence_rate method."""
+        # First call is clear_counts, second is get_counts
+        self.mock_serial.read_all.return_value = b"1000 2000 300 400 100 25 10 5 0\r\n"
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0)
+        result = cd48.measure_coincidence_rate(
+            duration=1.0,
+            singles_a_channel=0,
+            singles_b_channel=1,
+            coincidence_channel=4,
+        )
+
+        self.assertEqual(result["singles_a"], 1000)
+        self.assertEqual(result["singles_b"], 2000)
+        self.assertEqual(result["coincidences"], 100)
+        self.assertEqual(result["duration"], 1.0)
+        self.assertEqual(result["rate_a"], 1000.0)
+        self.assertEqual(result["rate_b"], 2000.0)
+        self.assertEqual(result["coincidence_rate"], 100.0)
+        # Verify accidental rate calculation
+        # accidental_rate = 2 * 25e-9 * 1000 * 2000 = 0.1
+        self.assertAlmostEqual(result["accidental_rate"], 0.1, places=6)
+        # true_coincidence_rate = 100 - 0.1 = 99.9
+        self.assertAlmostEqual(result["true_coincidence_rate"], 99.9, places=4)
+
+    @patch("serial.tools.list_ports.comports")
+    @patch("serial.Serial")
+    def test_init_auto_detect_cypress_vid(
+        self, mock_serial_class: MagicMock, mock_comports: MagicMock
+    ) -> None:
+        """Test initialization with auto-detection via Cypress VID."""
+        mock_port: Mock = Mock()
+        mock_port.device = "/dev/ttyACM0"
+        mock_port.description = "Some Device"
+        mock_port.vid = 0x04B4  # Cypress VID
+        mock_comports.return_value = [mock_port]
+
+        mock_serial_class.return_value = self.mock_serial
+
+        CD48()  # Auto-detect should find Cypress device
+
+        # Should have connected to the Cypress device
+        mock_serial_class.assert_called_with("/dev/ttyACM0", baudrate=115200, timeout=1)
+
+    @patch("time.sleep")
+    @patch("serial.Serial")
+    def test_init_with_init_delay(
+        self, mock_serial_class: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test initialization with custom init_delay."""
+        mock_serial_class.return_value = self.mock_serial
+
+        CD48(port="/dev/ttyUSB0", init_delay=0.5)
+
+        # Should have slept for 0.5 seconds
+        mock_sleep.assert_called()
+        # Find the init delay call (first call after Serial instantiation)
+        calls = mock_sleep.call_args_list
+        init_delay_call = calls[0]
+        self.assertEqual(init_delay_call[0][0], 0.5)
+
+    @patch("time.sleep")
+    @patch("serial.Serial")
+    def test_init_with_zero_init_delay(
+        self, mock_serial_class: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test initialization with init_delay=0 skips delay."""
+        mock_serial_class.return_value = self.mock_serial
+
+        CD48(port="/dev/ttyUSB0", init_delay=0)
+
+        # With init_delay=0, the init sleep should be skipped
+        # Verify that CD48 was created successfully by checking reset_input_buffer was called
+        self.mock_serial.reset_input_buffer.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
