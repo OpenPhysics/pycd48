@@ -16,7 +16,7 @@ jobs:
       uses: astral-sh/setup-uv@v7
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: uv sync --extra dev
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13']
       fail-fast: false
 
     steps:
@@ -71,7 +71,7 @@ jobs:
       uses: astral-sh/setup-uv@v7
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: uv sync
