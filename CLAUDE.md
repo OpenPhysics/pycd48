@@ -31,6 +31,8 @@ pycd48/
 ├── pycd48/              # Main package
 │   ├── __init__.py      # Public API exports
 │   ├── cd48.py          # Core CD48 class and serial communication
+│   ├── async_cd48.py    # Async version of CD48 class
+│   ├── experiments.py   # YAML experiment configuration with Pydantic models
 │   ├── logging.py       # DataLogger for CSV/JSON export
 │   ├── plotting.py      # Real-time plotting utilities
 │   └── py.typed         # PEP 561 marker for type hints
@@ -44,15 +46,16 @@ pycd48/
 The CI workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`, `develop`, and `claude/*` branches:
 
 1. **lint**: Black formatting, Ruff linting, Mypy type checking
-2. **test**: Pytest on Ubuntu/Windows × Python 3.10-3.13
+2. **test**: Pytest on Ubuntu/Windows × Python 3.12-3.13
 3. **examples**: Syntax check of example scripts
 
 ## Code Style
 
 - **Formatter**: Black (line-length: 100)
 - **Linter**: Ruff with rules: E, F, W, I (isort), UP (pyupgrade), B (bugbear), C4, SIM
-- **Type checker**: Mypy (Python 3.10 target)
+- **Type checker**: Mypy (Python 3.12 target)
 - **Type hints**: Modern style (`list[int]`, `X | None` instead of `List[int]`, `Optional[X]`)
+- **Pydantic**: 2.x with discriminated unions, validators, and `model_validate()`
 
 ## Testing
 

@@ -1,7 +1,7 @@
 # pycd48 - Python Interface for CD48 Coincidence Counter
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 A comprehensive Python library for controlling the [Red Dog Physics CD48 Coincidence Counter](https://www.reddogphysics.com/cd48.html) via USB serial interface.
 
@@ -32,7 +32,7 @@ This library provides a simple, Pythonic interface to control the device, config
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12 or higher
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - USB serial drivers (usually pre-installed on modern systems)
 
@@ -153,6 +153,7 @@ output:
 - ✅ **Version Control**: Track configuration changes in git
 - ✅ **Accessible**: Non-programmers can modify settings
 - ✅ **Self-documenting**: YAML configs are easy to read and understand
+- ✅ **Validated**: Pydantic 2.x provides runtime validation with clear error messages
 
 ### Supported Experiment Types
 
@@ -526,8 +527,10 @@ uv run pre-commit install
 **Code Quality:**
 
 The project uses:
-- Full type annotations (PEP 484) with TypedDict for structured data
+- Python 3.12+ with modern type syntax (`X | None`, `list[int]`)
+- Full type annotations (PEP 484) with TypedDict and Pydantic models
 - Function overloads for precise type inference
+- Pydantic 2.x with discriminated unions and custom validators
 - Mypy for static type checking
 - Black for code formatting
 - Ruff for linting
