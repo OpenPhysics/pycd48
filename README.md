@@ -209,6 +209,28 @@ For advanced users, here are the low-level serial commands used by the CD48:
 
 The library includes comprehensive examples for various use cases. See the [examples directory](examples/) for complete code.
 
+### Interactive Tutorial (Jupyter Notebook) 📓
+
+**New to pycd48? Start here!**
+
+We provide a comprehensive Jupyter notebook tutorial that covers all major features interactively:
+
+```bash
+jupyter notebook examples/pycd48_tutorial.ipynb
+```
+
+The notebook includes:
+- Step-by-step introduction to the CD48
+- Device connection and configuration
+- Data collection and analysis
+- Real-time visualization with matplotlib
+- Statistical analysis and coincidence calculations
+- Advanced features (DAC control, logging, overflow detection)
+
+This is the best way to learn the library and experiment with your CD48!
+
+---
+
 ### Example 1: Device Information
 Test connection and display device info:
 ```bash

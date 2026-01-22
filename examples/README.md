@@ -2,15 +2,52 @@
 
 This directory contains comprehensive example scripts demonstrating how to use the pycd48 library for various physics experiments and applications.
 
+## Interactive Tutorial (Jupyter Notebook)
+
+### pycd48_tutorial.ipynb 📓
+
+**Best starting point for new users!**
+
+An interactive Jupyter notebook that provides a comprehensive tutorial covering all major features of the pycd48 library.
+
+**Usage**:
+```bash
+jupyter notebook pycd48_tutorial.ipynb
+# or
+jupyter lab pycd48_tutorial.ipynb
+```
+
+**What it includes**:
+- 📖 Introduction to the CD48 and its capabilities
+- 🔌 Device connection and configuration
+- 📊 Simple and continuous data collection
+- 📈 Real-time data visualization with matplotlib
+- 🧮 Statistical analysis and accidental coincidence calculations
+- 🎛️ Advanced features (DAC control, overflow detection, data logging)
+- 💡 Interactive code cells with detailed explanations
+- 🎨 Publication-quality plots and visualizations
+
+**Perfect for**:
+- Learning the library interactively
+- Experimenting with different configurations
+- Teaching and educational demonstrations
+- Rapid prototyping of experiments
+- Creating custom analysis workflows
+
+**Prerequisites**: Install Jupyter with `uv sync --extra dev` or `pip install jupyter`
+
+---
+
 ## Quick Start
 
 If you're new to the CD48, follow this recommended order:
 
-1. **device_info.py** - Verify your connection works
-2. **simple_counting.py** - Learn basic counting operations
-3. **calibrate_trigger.py** - Find optimal trigger levels for your detectors
-4. **continuous_collection.py** - Understand time-resolved measurements
-5. Then explore the advanced examples based on your application
+1. **pycd48_tutorial.ipynb** - Interactive tutorial (recommended start!)
+2. **device_info.py** - Verify your connection works
+3. **simple_counting.py** - Learn basic counting operations
+4. **calibrate_trigger.py** - Find optimal trigger levels for your detectors
+5. **continuous_collection.py** - Understand time-resolved measurements
+6. Then explore the advanced examples based on your application
 
 ## Basic Examples
 
