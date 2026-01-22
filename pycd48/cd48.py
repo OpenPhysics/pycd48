@@ -49,6 +49,12 @@ class CD48ConfigError(CD48Error):
     pass
 
 
+class CD48ResponseError(CD48Error):
+    """Raised when device response validation fails in strict mode."""
+
+    pass
+
+
 # Type aliases for callbacks
 DisconnectCallback = Callable[[], None]
 ReconnectCallback = Callable[[], None]
@@ -127,12 +133,19 @@ class CD48:
     # This is the time window for counting coincident events
     DEFAULT_COINCIDENCE_WINDOW: float = 25e-9
 
+    # Commands that expect numeric/data responses (not just OK)
+    _DATA_COMMANDS: set[str] = {"c", "C", "p", "P", "E", "v", "H"}
+
+    # Commands that modify settings (expect acknowledgment)
+    _SETTING_COMMANDS: set[str] = {"S", "L", "z", "Z", "r", "R", "V", "T"}
+
     def __init__(
         self,
         port: str | None = None,
         baudrate: int = DEFAULT_BAUDRATE,
         timeout: float = DEFAULT_TIMEOUT,
         init_delay: float | None = None,
+        strict_mode: bool = False,
     ) -> None:
         """
         Initialize connection to CD48
@@ -145,13 +158,21 @@ class CD48:
         baudrate : int
             Communication speed (default 115200)
         timeout : float
-            Read timeout in seconds
+            Read timeout in seconds (default 1.0). Increase if experiencing
+            timeout errors on slower systems.
         init_delay : float, optional
             Device initialization delay in seconds (default: INIT_DELAY).
             Set to 0 to skip delay (useful for reconnecting to already-initialized device).
+        strict_mode : bool
+            If True, validates device responses more thoroughly (default False).
+            In strict mode:
+            - Checks for non-empty responses
+            - Validates response format for data commands
+            - Raises CD48ResponseError on unexpected responses
         """
         self._logger = logging.getLogger(__name__)
         self._init_delay = init_delay if init_delay is not None else self.INIT_DELAY
+        self._strict_mode = strict_mode
 
         if port is None:
             port = self._find_cd48()
@@ -244,12 +265,16 @@ class CD48:
             float(init_delay_val) if isinstance(init_delay_val, (int, float)) else None
         )
 
+        strict_mode_val = connection.get("strict_mode", False)
+        strict_mode: bool = bool(strict_mode_val) if strict_mode_val is not None else False
+
         # Create instance
         instance = cls(
             port=port,
             baudrate=baudrate,
             timeout=timeout,
             init_delay=init_delay,
+            strict_mode=strict_mode,
         )
 
         # Apply device settings if requested
@@ -342,6 +367,16 @@ class CD48:
         """Return the serial port name."""
         return self._port
 
+    @property
+    def strict_mode(self) -> bool:
+        """Return True if strict response validation is enabled."""
+        return self._strict_mode
+
+    @strict_mode.setter
+    def strict_mode(self, value: bool) -> None:
+        """Enable or disable strict response validation."""
+        self._strict_mode = value
+
     def reconnect(self, init_delay: float | None = None) -> None:
         """
         Reconnect to the CD48 device.
@@ -404,11 +439,66 @@ class CD48:
         raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
 
     def _send_command(self, command: str) -> str:
-        """Send command and return response"""
+        """Send command and return response."""
         self.ser.write((command + "\r").encode())
         time.sleep(self.COMMAND_DELAY)
         response: str = self.ser.read_all().decode().strip()
+
+        if self._strict_mode:
+            self._validate_response(command, response)
+
         return response
+
+    def _validate_response(self, command: str, response: str) -> None:
+        """
+        Validate device response in strict mode.
+
+        Parameters:
+        -----------
+        command : str
+            The command that was sent
+        response : str
+            The response received from the device
+
+        Raises:
+        -------
+        CD48ResponseError
+            If response validation fails
+        """
+        # Check for empty response
+        if not response:
+            raise CD48ResponseError(f"Empty response for command '{command}'")
+
+        # Extract command letter (first character, ignoring parameters)
+        cmd_char = command[0] if command else ""
+
+        # Validate data commands - should return data, not error
+        if cmd_char in self._DATA_COMMANDS:
+            # 'c' command should return space-separated numbers
+            if cmd_char == "c":
+                parts = response.split()
+                if len(parts) < self.NUM_CHANNELS + 1:
+                    raise CD48ResponseError(
+                        f"Invalid counts response format: expected {self.NUM_CHANNELS + 1} "
+                        f"values, got {len(parts)}: '{response}'"
+                    )
+                # Verify all parts are numeric
+                for i, part in enumerate(parts[: self.NUM_CHANNELS + 1]):
+                    if not part.lstrip("-").isdigit():
+                        raise CD48ResponseError(
+                            f"Non-numeric value in counts response at position {i}: '{part}'"
+                        )
+
+            # 'E' command should return a single integer (overflow status)
+            elif cmd_char == "E":
+                if not response.strip().lstrip("-").isdigit():
+                    raise CD48ResponseError(
+                        f"Invalid overflow response: expected integer, got '{response}'"
+                    )
+
+        # Log response for setting commands if debug logging is enabled
+        elif cmd_char.upper() in {c.upper() for c in self._SETTING_COMMANDS}:
+            self._logger.debug(f"Command '{command}' response: '{response}'")
 
     @overload
     def get_counts(self, human_readable: Literal[True] = True) -> str: ...
@@ -748,6 +838,7 @@ class CD48WithReconnect(CD48):
         baudrate: int = CD48.DEFAULT_BAUDRATE,
         timeout: float = CD48.DEFAULT_TIMEOUT,
         init_delay: float | None = None,
+        strict_mode: bool = False,
         auto_reconnect: bool = True,
         reconnect_delay: float = 1.0,
         max_reconnect_attempts: int = 5,
@@ -767,6 +858,8 @@ class CD48WithReconnect(CD48):
             Read timeout in seconds
         init_delay : float, optional
             Device initialization delay in seconds
+        strict_mode : bool
+            If True, validates device responses more thoroughly (default False)
         auto_reconnect : bool
             If True, automatically attempt to reconnect on disconnect (default True)
         reconnect_delay : float
@@ -778,7 +871,7 @@ class CD48WithReconnect(CD48):
         on_reconnect : callable, optional
             Callback function called when device reconnects
         """
-        super().__init__(port, baudrate, timeout, init_delay)
+        super().__init__(port, baudrate, timeout, init_delay, strict_mode)
         self._auto_reconnect = auto_reconnect
         self._reconnect_delay = reconnect_delay
         self._max_reconnect_attempts = max_reconnect_attempts

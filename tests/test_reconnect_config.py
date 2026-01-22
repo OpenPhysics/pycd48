@@ -21,6 +21,7 @@ from pycd48 import (
     CD48,
     CD48ConfigError,
     CD48ConnectionError,
+    CD48ResponseError,
     CD48WithReconnect,
 )
 
@@ -422,6 +423,146 @@ class TestCD48Exceptions(unittest.TestCase):
         error = CD48ConfigError("Invalid config")
         self.assertEqual(str(error), "Invalid config")
         self.assertIsInstance(error, Exception)
+
+    def test_response_error(self) -> None:
+        """Test CD48ResponseError."""
+        error = CD48ResponseError("Invalid response")
+        self.assertEqual(str(error), "Invalid response")
+        self.assertIsInstance(error, Exception)
+
+
+class TestCD48StrictMode(unittest.TestCase):
+    """Test cases for strict mode response validation."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        self.mock_serial: Mock = Mock(spec=serial.Serial)
+        self.mock_serial.is_open = True
+
+    @patch("serial.Serial")
+    def test_strict_mode_disabled_by_default(self, mock_serial_class: MagicMock) -> None:
+        """Test that strict mode is disabled by default."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0)
+        self.assertFalse(cd48.strict_mode)
+
+    @patch("serial.Serial")
+    def test_strict_mode_enabled(self, mock_serial_class: MagicMock) -> None:
+        """Test that strict mode can be enabled."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+        self.assertTrue(cd48.strict_mode)
+
+    @patch("serial.Serial")
+    def test_strict_mode_setter(self, mock_serial_class: MagicMock) -> None:
+        """Test that strict mode can be changed after init."""
+        mock_serial_class.return_value = self.mock_serial
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0)
+        self.assertFalse(cd48.strict_mode)
+
+        cd48.strict_mode = True
+        self.assertTrue(cd48.strict_mode)
+
+        cd48.strict_mode = False
+        self.assertFalse(cd48.strict_mode)
+
+    @patch("serial.Serial")
+    def test_strict_mode_empty_response_error(self, mock_serial_class: MagicMock) -> None:
+        """Test that empty response raises error in strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b""
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+
+        with self.assertRaises(CD48ResponseError) as context:
+            cd48._send_command("C")
+        self.assertIn("Empty response", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_strict_mode_valid_counts_response(self, mock_serial_class: MagicMock) -> None:
+        """Test that valid counts response passes strict validation."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"100 200 300 400 50 25 10 5 0\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+        response = cd48._send_command("c")
+
+        self.assertEqual(response, "100 200 300 400 50 25 10 5 0")
+
+    @patch("serial.Serial")
+    def test_strict_mode_invalid_counts_format(self, mock_serial_class: MagicMock) -> None:
+        """Test that invalid counts format raises error in strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        # Only 3 values instead of 9
+        self.mock_serial.read_all.return_value = b"100 200 300\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+
+        with self.assertRaises(CD48ResponseError) as context:
+            cd48._send_command("c")
+        self.assertIn("Invalid counts response format", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_strict_mode_non_numeric_counts(self, mock_serial_class: MagicMock) -> None:
+        """Test that non-numeric counts raises error in strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"100 abc 300 400 50 25 10 5 0\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+
+        with self.assertRaises(CD48ResponseError) as context:
+            cd48._send_command("c")
+        self.assertIn("Non-numeric value", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_strict_mode_valid_overflow_response(self, mock_serial_class: MagicMock) -> None:
+        """Test that valid overflow response passes strict validation."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"5\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+        response = cd48._send_command("E")
+
+        self.assertEqual(response, "5")
+
+    @patch("serial.Serial")
+    def test_strict_mode_invalid_overflow_response(self, mock_serial_class: MagicMock) -> None:
+        """Test that invalid overflow response raises error in strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"not_a_number\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+
+        with self.assertRaises(CD48ResponseError) as context:
+            cd48._send_command("E")
+        self.assertIn("Invalid overflow response", str(context.exception))
+
+    @patch("serial.Serial")
+    def test_strict_mode_setting_command_ok(self, mock_serial_class: MagicMock) -> None:
+        """Test that setting commands work in strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"OK\r\n"
+
+        cd48 = CD48(port="/dev/ttyUSB0", init_delay=0, strict_mode=True)
+        response = cd48._send_command("S01000")
+
+        self.assertEqual(response, "OK")
+
+    @patch("serial.Serial")
+    def test_strict_mode_with_reconnect(self, mock_serial_class: MagicMock) -> None:
+        """Test that CD48WithReconnect supports strict mode."""
+        mock_serial_class.return_value = self.mock_serial
+        self.mock_serial.read_all.return_value = b"OK\r\n"
+
+        cd48 = CD48WithReconnect(
+            port="/dev/ttyUSB0",
+            init_delay=0,
+            strict_mode=True,
+        )
+        self.assertTrue(cd48.strict_mode)
 
 
 if __name__ == "__main__":

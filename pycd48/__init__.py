@@ -16,6 +16,7 @@ from .cd48 import (
     CD48DeviceNotFoundError,
     CD48Error,
     CD48ParseError,
+    CD48ResponseError,
     CD48WithReconnect,
     CoincidenceResult,
     CountsDict,
@@ -48,6 +49,7 @@ __all__ = [
     "CD48DeviceNotFoundError",
     "CD48ConnectionError",
     "CD48ConfigError",
+    "CD48ResponseError",
     # Type definitions
     "CountsDict",
     "RateResult",
