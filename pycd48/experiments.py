@@ -11,11 +11,11 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict, cast
 
 import numpy as np
 
-from .cd48 import CD48, CD48ConfigError
+from .cd48 import CD48, CD48ConfigError, CoincidenceResult, RateResult
 
 
 class ExperimentConfig(TypedDict, total=False):
@@ -23,18 +23,73 @@ class ExperimentConfig(TypedDict, total=False):
 
     name: str
     description: str
-    connection: dict[str, Any]
-    settings: dict[str, Any]
-    experiment: dict[str, Any]
-    output: dict[str, Any]
+    connection: dict[str, object]
+    settings: dict[str, object]
+    experiment: dict[str, object]
+    output: dict[str, object]
+
+
+class RateSummary(TypedDict):
+    """Type definition for aggregated rate measurement results."""
+
+    channel: int
+    duration: float
+    repeats: int
+    mean_rate: float
+    std_rate: float
+    measurements: list[RateResult]
+
+
+class CoincidenceSummary(TypedDict):
+    """Type definition for aggregated coincidence measurement results."""
+
+    duration: float
+    repeats: int
+    mean_true_coincidence_rate: float
+    std_true_coincidence_rate: float
+    measurements: list[CoincidenceResult]
+
+
+class ContinuousData(TypedDict):
+    """Type definition for continuous collection data."""
+
+    timestamps: list[float]
+    counts: dict[int, list[int]]
+    rates: dict[int, list[float]]
+    interval: float
+    channels: list[int]
+
+
+class VoltageSweepData(TypedDict):
+    """Type definition for voltage sweep data."""
+
+    voltages: list[float]
+    counts: dict[int, list[int]]
+    rates: dict[int, list[float]]
+    measurement_time: float
+    channels: list[int]
+
+
+class ExperimentMetadata(TypedDict):
+    """Type definition for experiment metadata."""
+
+    experiment_type: str
+    timestamp: float
 
 
 class ExperimentResult(TypedDict, total=False):
     """Type definition for experiment results."""
 
     config: ExperimentConfig
-    data: dict[str, Any]
-    metadata: dict[str, Any]
+    data: (
+        RateResult
+        | RateSummary
+        | CoincidenceResult
+        | CoincidenceSummary
+        | ContinuousData
+        | VoltageSweepData
+    )
+    metadata: ExperimentMetadata
 
 
 class ExperimentRunner:
@@ -143,17 +198,17 @@ class ExperimentRunner:
         finally:
             cd48.close()
 
-    def _run_rate_measurement(self, cd48: CD48, experiment: dict[str, Any]) -> ExperimentResult:
+    def _run_rate_measurement(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
         """Run rate measurement experiment."""
-        channel = experiment.get("channel", 0)
-        duration = experiment.get("duration", 1.0)
-        repeats = experiment.get("repeats", 1)
+        channel = cast(int, experiment.get("channel", 0))
+        duration = cast(float, experiment.get("duration", 1.0))
+        repeats = cast(int, experiment.get("repeats", 1))
 
         self._logger.info(
             f"Rate measurement: channel={channel}, duration={duration}s, repeats={repeats}"
         )
 
-        results = []
+        results: list[RateResult] = []
         for i in range(repeats):
             self._logger.info(f"Measurement {i+1}/{repeats}")
             result = cd48.measure_rate(channel=channel, duration=duration)
@@ -162,17 +217,17 @@ class ExperimentRunner:
                 time.sleep(0.1)  # Small delay between measurements
 
         # Calculate statistics if multiple measurements
-        summary: Any
+        summary: RateResult | RateSummary
         if len(results) > 1:
             rates = [r["rate"] for r in results]
-            summary = {
-                "channel": channel,
-                "duration": duration,
-                "repeats": repeats,
-                "mean_rate": float(np.mean(rates)),
-                "std_rate": float(np.std(rates)),
-                "measurements": results,
-            }
+            summary = RateSummary(
+                channel=channel,
+                duration=duration,
+                repeats=repeats,
+                mean_rate=float(np.mean(rates)),
+                std_rate=float(np.std(rates)),
+                measurements=results,
+            )
         else:
             summary = results[0]
 
@@ -186,22 +241,22 @@ class ExperimentRunner:
         }
 
     def _run_coincidence_measurement(
-        self, cd48: CD48, experiment: dict[str, Any]
+        self, cd48: CD48, experiment: dict[str, object]
     ) -> ExperimentResult:
         """Run coincidence measurement experiment."""
-        duration = experiment.get("duration", 1.0)
-        singles_a = experiment.get("singles_a_channel", 0)
-        singles_b = experiment.get("singles_b_channel", 1)
-        coincidence = experiment.get("coincidence_channel", 4)
-        window = experiment.get("coincidence_window", 25e-9)
-        repeats = experiment.get("repeats", 1)
+        duration = cast(float, experiment.get("duration", 1.0))
+        singles_a = cast(int, experiment.get("singles_a_channel", 0))
+        singles_b = cast(int, experiment.get("singles_b_channel", 1))
+        coincidence = cast(int, experiment.get("coincidence_channel", 4))
+        window = cast(float, experiment.get("coincidence_window", 25e-9))
+        repeats = cast(int, experiment.get("repeats", 1))
 
         self._logger.info(
             f"Coincidence measurement: duration={duration}s, "
             f"channels A={singles_a}, B={singles_b}, AB={coincidence}, repeats={repeats}"
         )
 
-        results = []
+        results: list[CoincidenceResult] = []
         for i in range(repeats):
             self._logger.info(f"Measurement {i+1}/{repeats}")
             result = cd48.measure_coincidence_rate(
@@ -216,16 +271,16 @@ class ExperimentRunner:
                 time.sleep(0.1)
 
         # Calculate statistics if multiple measurements
-        summary: Any
+        summary: CoincidenceResult | CoincidenceSummary
         if len(results) > 1:
             true_rates = [r["true_coincidence_rate"] for r in results]
-            summary = {
-                "duration": duration,
-                "repeats": repeats,
-                "mean_true_coincidence_rate": float(np.mean(true_rates)),
-                "std_true_coincidence_rate": float(np.std(true_rates)),
-                "measurements": results,
-            }
+            summary = CoincidenceSummary(
+                duration=duration,
+                repeats=repeats,
+                mean_true_coincidence_rate=float(np.mean(true_rates)),
+                std_true_coincidence_rate=float(np.std(true_rates)),
+                measurements=results,
+            )
         else:
             summary = results[0]
 
@@ -239,12 +294,13 @@ class ExperimentRunner:
         }
 
     def _run_continuous_collection(
-        self, cd48: CD48, experiment: dict[str, Any]
+        self, cd48: CD48, experiment: dict[str, object]
     ) -> ExperimentResult:
         """Run continuous data collection experiment."""
-        duration = experiment.get("duration", 60.0)
-        interval = experiment.get("interval", 1.0)
-        channels = experiment.get("channels", [0, 1, 4])
+        duration = cast(float, experiment.get("duration", 60.0))
+        interval = cast(float, experiment.get("interval", 1.0))
+        channels_obj = experiment.get("channels", [0, 1, 4])
+        channels = cast(list[int], channels_obj)
 
         self._logger.info(
             f"Continuous collection: duration={duration}s, "
@@ -252,7 +308,7 @@ class ExperimentRunner:
         )
 
         num_measurements = int(duration / interval)
-        timestamps = []
+        timestamps: list[float] = []
         channel_data: dict[int, list[int]] = {ch: [] for ch in channels}
 
         start_time = time.time()
@@ -272,32 +328,35 @@ class ExperimentRunner:
             self._logger.debug(f"Measurement {i+1}/{num_measurements}: t={elapsed:.1f}s")
 
         # Convert to rates (counts per second)
-        rates = {ch: [count / interval for count in counts] for ch, counts in channel_data.items()}
+        rates: dict[int, list[float]] = {
+            ch: [count / interval for count in counts] for ch, counts in channel_data.items()
+        }
+
+        continuous_data: ContinuousData = {
+            "timestamps": timestamps,
+            "counts": channel_data,
+            "rates": rates,
+            "interval": interval,
+            "channels": channels,
+        }
 
         return {
             "config": self.config,
-            "data": {
-                "timestamps": timestamps,
-                "counts": channel_data,
-                "rates": rates,
-                "interval": interval,
-                "channels": channels,
-            },
+            "data": continuous_data,
             "metadata": {
                 "experiment_type": "continuous",
                 "timestamp": time.time(),
-                "duration": duration,
-                "num_measurements": num_measurements,
             },
         }
 
-    def _run_voltage_sweep(self, cd48: CD48, experiment: dict[str, Any]) -> ExperimentResult:
+    def _run_voltage_sweep(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
         """Run voltage sweep experiment."""
-        v_min = experiment.get("voltage_min", 0.0)
-        v_max = experiment.get("voltage_max", 4.0)
-        v_steps = experiment.get("voltage_steps", 20)
-        measurement_time = experiment.get("measurement_time", 3.0)
-        channels = experiment.get("channels", [0, 1, 4])
+        v_min = cast(float, experiment.get("voltage_min", 0.0))
+        v_max = cast(float, experiment.get("voltage_max", 4.0))
+        v_steps = cast(int, experiment.get("voltage_steps", 20))
+        measurement_time = cast(float, experiment.get("measurement_time", 3.0))
+        channels_obj = experiment.get("channels", [0, 1, 4])
+        channels = cast(list[int], channels_obj)
 
         voltages = np.linspace(v_min, v_max, v_steps)
 
@@ -306,7 +365,7 @@ class ExperimentRunner:
             f"{v_steps} steps, {measurement_time}s per point"
         )
 
-        voltage_data = []
+        voltage_data: list[float] = []
         channel_data: dict[int, list[int]] = {ch: [] for ch in channels}
 
         for i, voltage in enumerate(voltages):
@@ -330,25 +389,25 @@ class ExperimentRunner:
         cd48.set_dac_voltage(0.0)
 
         # Convert to rates
-        rates = {
+        rates: dict[int, list[float]] = {
             ch: [count / measurement_time for count in counts]
             for ch, counts in channel_data.items()
         }
 
+        sweep_data: VoltageSweepData = {
+            "voltages": voltage_data,
+            "counts": channel_data,
+            "rates": rates,
+            "measurement_time": measurement_time,
+            "channels": channels,
+        }
+
         return {
             "config": self.config,
-            "data": {
-                "voltages": voltage_data,
-                "counts": channel_data,
-                "rates": rates,
-                "measurement_time": measurement_time,
-                "channels": channels,
-            },
+            "data": sweep_data,
             "metadata": {
                 "experiment_type": "voltage_sweep",
                 "timestamp": time.time(),
-                "voltage_range": [v_min, v_max],
-                "num_points": v_steps,
             },
         }
 
@@ -362,7 +421,8 @@ class ExperimentRunner:
             return
 
         # Create output directory if specified
-        output_dir = Path(output.get("directory", "."))
+        directory_obj = output.get("directory", ".")
+        output_dir = Path(cast(str, directory_obj))
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
@@ -387,37 +447,59 @@ class ExperimentRunner:
         """Save experiment results to CSV file."""
         import csv
 
-        data = result.get("data", {})
-        exp_type = result.get("metadata", {}).get("experiment_type", "")
+        data = result.get("data")
+        metadata = result.get("metadata")
+
+        if data is None or metadata is None:
+            return
+
+        exp_type = metadata.get("experiment_type", "")
 
         with open(path, "w", newline="", encoding="utf-8") as f:
-            if exp_type == "continuous" or exp_type == "voltage_sweep":
-                # Time series or sweep data
-                if exp_type == "continuous":
-                    x_key = "timestamps"
-                    x_label = "time"
-                else:
-                    x_key = "voltages"
-                    x_label = "voltage"
+            writer = csv.writer(f)
 
-                x_data = data.get(x_key, [])
-                channels = data.get("channels", [])
-                rates = data.get("rates", {})
+            if exp_type == "continuous":
+                # Continuous data format
+                if isinstance(data, dict) and "timestamps" in data:
+                    continuous = cast(ContinuousData, data)
+                    x_data = continuous["timestamps"]
+                    channels = continuous["channels"]
+                    rates = continuous["rates"]
 
-                writer = csv.writer(f)
-                header = [x_label] + [f"ch{ch}_rate" for ch in channels]
-                writer.writerow(header)
+                    header = ["time"] + [f"ch{ch}_rate" for ch in channels]
+                    writer.writerow(header)
 
-                for i, x_val in enumerate(x_data):
-                    row = [x_val] + [rates[ch][i] if ch in rates else 0 for ch in channels]
-                    writer.writerow(row)
+                    for i, x_val in enumerate(x_data):
+                        row = [x_val] + [
+                            rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
+                            for ch in channels
+                        ]
+                        writer.writerow(row)
+
+            elif exp_type == "voltage_sweep":
+                # Voltage sweep data format
+                if isinstance(data, dict) and "voltages" in data:
+                    sweep = cast(VoltageSweepData, data)
+                    x_data = sweep["voltages"]
+                    channels = sweep["channels"]
+                    rates = sweep["rates"]
+
+                    header = ["voltage"] + [f"ch{ch}_rate" for ch in channels]
+                    writer.writerow(header)
+
+                    for i, x_val in enumerate(x_data):
+                        row = [x_val] + [
+                            rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
+                            for ch in channels
+                        ]
+                        writer.writerow(row)
 
             else:
-                # Single measurement or summary
-                writer = csv.writer(f)
-                for key, value in data.items():
-                    if not isinstance(value, (list, dict)):
-                        writer.writerow([key, value])
+                # Single measurement or summary format
+                if isinstance(data, dict):
+                    for key, value in data.items():
+                        if not isinstance(value, (list, dict)):
+                            writer.writerow([key, value])
 
 
 def run_experiment(config_path: str | Path) -> ExperimentResult:
