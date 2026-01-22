@@ -7,7 +7,7 @@ name = "pycd48"
 version = "0.1.0"
 description = "Python interface for the Red Dog Physics CD48 Coincidence Counter"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "OpenPhysics Contributors"},
@@ -19,8 +19,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
@@ -77,7 +75,7 @@ Repository = "https://github.com/OpenPhysics/pycd48"
 
 [tool.black]
 line-length = 100
-target-version = ['py310', 'py311', 'py312', 'py313']
+target-version = ['py312', 'py313']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -101,7 +99,7 @@ python_functions = ["test_*"]
 addopts = "-v --cov=pycd48 --cov-report=term-missing"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 # Strict type checking
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -126,7 +124,7 @@ disallow_any_explicit = false
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 exclude = [
     ".git",
     "__pycache__",

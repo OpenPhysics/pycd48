@@ -11,48 +11,234 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Annotated, Literal, Self
 
 import numpy as np
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    model_validator,
+)
 
 from .cd48 import CD48, CD48ConfigError, CoincidenceResult, RateResult
 
-
-class ExperimentConfig(TypedDict, total=False):
-    """Type definition for experiment configuration."""
-
-    name: str
-    description: str
-    connection: dict[str, object]
-    settings: dict[str, object]
-    experiment: dict[str, object]
-    output: dict[str, object]
+# =============================================================================
+# Custom Types with Validation
+# =============================================================================
 
 
-class RateSummary(TypedDict):
-    """Type definition for aggregated rate measurement results."""
+def _validate_channel(v: int) -> int:
+    """Validate that channel is in valid range 0-7."""
+    if not 0 <= v <= 7:
+        raise ValueError(f"Channel must be 0-7, got {v}")
+    return v
+
+
+def _validate_channels_list(v: list[int]) -> list[int]:
+    """Validate that all channels in list are in valid range 0-7."""
+    for ch in v:
+        if not 0 <= ch <= 7:
+            raise ValueError(f"Channel must be 0-7, got {ch}")
+    return v
+
+
+# Reusable validated types
+Channel = Annotated[int, AfterValidator(_validate_channel)]
+ChannelList = Annotated[list[int], AfterValidator(_validate_channels_list)]
+
+
+# =============================================================================
+# Experiment Configuration Models (Discriminated Union)
+# =============================================================================
+
+
+class RateExperimentModel(BaseModel):
+    """Validated configuration for rate measurement experiments."""
+
+    model_config = ConfigDict(strict=True)
+
+    type: Literal["rate"]
+    channel: Channel = 0
+    duration: float = Field(default=1.0, gt=0)
+    repeats: int = Field(default=1, ge=1)
+
+
+class CoincidenceExperimentModel(BaseModel):
+    """Validated configuration for coincidence measurement experiments."""
+
+    model_config = ConfigDict(strict=True)
+
+    type: Literal["coincidence"]
+    duration: float = Field(default=1.0, gt=0)
+    singles_a_channel: Channel = 0
+    singles_b_channel: Channel = 1
+    coincidence_channel: Channel = 4
+    coincidence_window: float = Field(default=25e-9, gt=0)
+    repeats: int = Field(default=1, ge=1)
+
+
+class ContinuousExperimentModel(BaseModel):
+    """Validated configuration for continuous collection experiments."""
+
+    model_config = ConfigDict(strict=True)
+
+    type: Literal["continuous"]
+    duration: float = Field(default=60.0, gt=0)
+    interval: float = Field(default=1.0, gt=0)
+    channels: ChannelList = Field(default=[0, 1, 4])
+
+
+class VoltageSweepExperimentModel(BaseModel):
+    """Validated configuration for voltage sweep experiments."""
+
+    model_config = ConfigDict(strict=True)
+
+    type: Literal["voltage_sweep"]
+    voltage_min: float = Field(default=0.0, ge=0.0, le=4.08)
+    voltage_max: float = Field(default=4.0, ge=0.0, le=4.08)
+    voltage_steps: int = Field(default=20, ge=2)
+    measurement_time: float = Field(default=3.0, gt=0)
+    channels: ChannelList = Field(default=[0, 1, 4])
+
+    @model_validator(mode="after")
+    def check_voltage_range(self) -> Self:
+        """Ensure voltage_min is less than voltage_max."""
+        if self.voltage_min >= self.voltage_max:
+            raise ValueError(
+                f"voltage_min ({self.voltage_min}) must be less than "
+                f"voltage_max ({self.voltage_max})"
+            )
+        return self
+
+
+# Discriminated union - Pydantic auto-dispatches based on 'type' field
+ExperimentModel = Annotated[
+    RateExperimentModel
+    | CoincidenceExperimentModel
+    | ContinuousExperimentModel
+    | VoltageSweepExperimentModel,
+    Discriminator("type"),
+]
+
+
+# =============================================================================
+# Configuration Section Models
+# =============================================================================
+
+
+class ChannelConfig(BaseModel):
+    """Configuration for a single channel's input selection."""
+
+    model_config = ConfigDict(strict=True)
+
+    A: int = Field(default=0, ge=0, le=1)
+    B: int = Field(default=0, ge=0, le=1)
+    C: int = Field(default=0, ge=0, le=1)
+    D: int = Field(default=0, ge=0, le=1)
+
+
+class ConnectionConfig(BaseModel):
+    """Device connection configuration."""
+
+    model_config = ConfigDict(extra="allow")  # Allow extra fields like 'port'
+
+    port: str | None = None
+    baudrate: int = 115200
+    timeout: float = 1.0
+    init_delay: float = 2.0
+
+
+class SettingsConfig(BaseModel):
+    """Device settings configuration."""
+
+    model_config = ConfigDict(extra="allow")  # Allow extra fields
+
+    trigger_level: float | None = None
+    impedance: Literal["50ohm", "1Mohm"] | None = None
+    channels: dict[str, ChannelConfig] | None = None
+
+
+class OutputConfig(BaseModel):
+    """Output configuration for experiment results."""
+
+    model_config = ConfigDict(populate_by_name=True)  # Allow string->Path coercion
+
+    directory: Path = Path(".")
+    save_json: bool = Field(default=False, alias="json")
+    save_csv: bool = Field(default=False, alias="csv")
+
+
+class FullExperimentConfig(BaseModel):
+    """
+    Complete experiment configuration with full validation.
+
+    This model validates the entire YAML configuration file structure.
+    """
+
+    model_config = ConfigDict(extra="allow")  # Allow extra fields for extensibility
+
+    name: str = "experiment"
+    description: str = ""
+    connection: ConnectionConfig = Field(default_factory=ConnectionConfig)
+    settings: SettingsConfig = Field(default_factory=SettingsConfig)
+    experiment: ExperimentModel  # Required - discriminated union
+    output: OutputConfig = Field(default_factory=OutputConfig)
+
+
+# =============================================================================
+# Result Models
+# =============================================================================
+
+
+class RateMeasurementModel(BaseModel):
+    """Single rate measurement result (Pydantic equivalent of RateResult TypedDict)."""
+
+    counts: int
+    duration: float
+    rate: float
+    channel: int
+
+
+class CoincidenceMeasurementModel(BaseModel):
+    """Single coincidence measurement result (Pydantic equivalent of CoincidenceResult)."""
+
+    singles_a: int
+    singles_b: int
+    coincidences: int
+    duration: float
+    rate_a: float
+    rate_b: float
+    coincidence_rate: float
+    accidental_rate: float
+    true_coincidence_rate: float
+
+
+class RateSummaryModel(BaseModel):
+    """Aggregated rate measurement results."""
 
     channel: int
     duration: float
     repeats: int
     mean_rate: float
     std_rate: float
-    measurements: list[RateResult]
+    measurements: list[RateMeasurementModel]
 
 
-class CoincidenceSummary(TypedDict):
-    """Type definition for aggregated coincidence measurement results."""
+class CoincidenceSummaryModel(BaseModel):
+    """Aggregated coincidence measurement results."""
 
     duration: float
     repeats: int
     mean_true_coincidence_rate: float
     std_true_coincidence_rate: float
-    measurements: list[CoincidenceResult]
+    measurements: list[CoincidenceMeasurementModel]
 
 
-class ContinuousData(TypedDict):
-    """Type definition for continuous collection data."""
+class ContinuousDataModel(BaseModel):
+    """Continuous collection data."""
 
     timestamps: list[float]
     counts: dict[int, list[int]]
@@ -61,8 +247,8 @@ class ContinuousData(TypedDict):
     channels: list[int]
 
 
-class VoltageSweepData(TypedDict):
-    """Type definition for voltage sweep data."""
+class VoltageSweepDataModel(BaseModel):
+    """Voltage sweep data."""
 
     voltages: list[float]
     counts: dict[int, list[int]]
@@ -71,70 +257,41 @@ class VoltageSweepData(TypedDict):
     channels: list[int]
 
 
-class ExperimentMetadata(TypedDict):
-    """Type definition for experiment metadata."""
+class ExperimentMetadataModel(BaseModel):
+    """Experiment metadata."""
 
     experiment_type: str
     timestamp: float
 
 
-class ExperimentResult(TypedDict, total=False):
-    """Type definition for experiment results."""
-
-    config: ExperimentConfig
-    data: (
-        RateResult
-        | RateSummary
-        | CoincidenceResult
-        | CoincidenceSummary
-        | ContinuousData
-        | VoltageSweepData
-    )
-    metadata: ExperimentMetadata
+# Union type for all possible experiment data results
+ExperimentData = (
+    RateMeasurementModel
+    | RateSummaryModel
+    | CoincidenceMeasurementModel
+    | CoincidenceSummaryModel
+    | ContinuousDataModel
+    | VoltageSweepDataModel
+)
 
 
-# Pydantic models for validated experiment configurations
+class ExperimentResultModel(BaseModel):
+    """Complete experiment result with config, data, and metadata."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    config: FullExperimentConfig
+    data: ExperimentData
+    metadata: ExperimentMetadataModel
 
 
-class RateExperimentModel(BaseModel):  # type: ignore[explicit-any]
-    """Validated configuration for rate measurement experiments."""
-
-    type: Literal["rate"]
-    channel: int = Field(default=0, ge=0, le=7)
-    duration: float = Field(default=1.0, gt=0)
-    repeats: int = Field(default=1, ge=1)
+# Type alias for backward compatibility - dict representation
+ExperimentResult = dict[str, object]
 
 
-class CoincidenceExperimentModel(BaseModel):  # type: ignore[explicit-any]
-    """Validated configuration for coincidence measurement experiments."""
-
-    type: Literal["coincidence"]
-    duration: float = Field(default=1.0, gt=0)
-    singles_a_channel: int = Field(default=0, ge=0, le=7)
-    singles_b_channel: int = Field(default=1, ge=0, le=7)
-    coincidence_channel: int = Field(default=4, ge=0, le=7)
-    coincidence_window: float = Field(default=25e-9, gt=0)
-    repeats: int = Field(default=1, ge=1)
-
-
-class ContinuousExperimentModel(BaseModel):  # type: ignore[explicit-any]
-    """Validated configuration for continuous collection experiments."""
-
-    type: Literal["continuous"]
-    duration: float = Field(default=60.0, gt=0)
-    interval: float = Field(default=1.0, gt=0)
-    channels: list[int] = Field(default=[0, 1, 4])
-
-
-class VoltageSweepExperimentModel(BaseModel):  # type: ignore[explicit-any]
-    """Validated configuration for voltage sweep experiments."""
-
-    type: Literal["voltage_sweep"]
-    voltage_min: float = Field(default=0.0, ge=0.0, le=4.08)
-    voltage_max: float = Field(default=4.0, ge=0.0, le=4.08)
-    voltage_steps: int = Field(default=20, ge=2)
-    measurement_time: float = Field(default=3.0, gt=0)
-    channels: list[int] = Field(default=[0, 1, 4])
+# =============================================================================
+# Experiment Runner
+# =============================================================================
 
 
 class ExperimentRunner:
@@ -162,12 +319,14 @@ class ExperimentRunner:
         if not self.config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-        # Load configuration
-        self.config = self._load_config()
-        self._validate_config()
+        # Load and validate configuration using Pydantic
+        self._config_model = self._load_and_validate_config()
 
-    def _load_config(self) -> ExperimentConfig:
-        """Load experiment configuration from YAML file."""
+        # Expose config as dict for backward compatibility
+        self.config = self._config_model.model_dump(mode="python")
+
+    def _load_and_validate_config(self) -> FullExperimentConfig:
+        """Load and validate experiment configuration from YAML file."""
         try:
             import yaml  # type: ignore[import-untyped]
         except ImportError as e:
@@ -177,17 +336,17 @@ class ExperimentRunner:
 
         with open(self.config_path, encoding="utf-8") as f:
             try:
-                config: ExperimentConfig = yaml.safe_load(f)
-                return config if config is not None else {}
+                raw_config = yaml.safe_load(f)
+                if raw_config is None:
+                    raw_config = {}
             except yaml.YAMLError as e:
                 raise CD48ConfigError(f"Invalid YAML in config file: {e}") from e
 
-    def _validate_config(self) -> None:
-        """Validate experiment configuration."""
-        if "experiment" not in self.config:
+        # Validate required experiment section before Pydantic validation
+        if "experiment" not in raw_config:
             raise CD48ConfigError("Configuration must include 'experiment' section")
 
-        experiment = self.config["experiment"]
+        experiment = raw_config.get("experiment", {})
         if not isinstance(experiment, dict):
             raise CD48ConfigError("'experiment' section must be a dictionary")
 
@@ -195,11 +354,18 @@ class ExperimentRunner:
             raise CD48ConfigError("Experiment must specify 'type'")
 
         valid_types = ["rate", "coincidence", "continuous", "voltage_sweep"]
-        exp_type = experiment["type"]
+        exp_type = experiment.get("type")
         if exp_type not in valid_types:
             raise CD48ConfigError(
                 f"Invalid experiment type '{exp_type}'. Must be one of: {valid_types}"
             )
+
+        # Use Pydantic for full validation
+        try:
+            config: FullExperimentConfig = FullExperimentConfig.model_validate(raw_config)
+            return config
+        except Exception as e:
+            raise CD48ConfigError(f"Invalid configuration: {e}") from e
 
     def run(self) -> ExperimentResult:
         """
@@ -207,7 +373,7 @@ class ExperimentRunner:
 
         Returns:
         --------
-        ExperimentResult : Experiment results including data and metadata
+        ExperimentResult : Experiment results as dict (for backward compatibility)
 
         Raises:
         -------
@@ -220,36 +386,34 @@ class ExperimentRunner:
         cd48 = CD48.from_config(self.config_path, apply_settings=True)
 
         try:
-            # Get experiment type and run appropriate handler
-            exp_type = self.config["experiment"]["type"]
-            experiment = self.config["experiment"]
+            # Get experiment model - already validated
+            experiment = self._config_model.experiment
 
-            if exp_type == "rate":
-                result = self._run_rate_measurement(cd48, experiment)
-            elif exp_type == "coincidence":
-                result = self._run_coincidence_measurement(cd48, experiment)
-            elif exp_type == "continuous":
-                result = self._run_continuous_collection(cd48, experiment)
-            elif exp_type == "voltage_sweep":
-                result = self._run_voltage_sweep(cd48, experiment)
-            else:
-                raise CD48ConfigError(f"Unsupported experiment type: {exp_type}")
+            # Dispatch based on experiment type using pattern matching
+            match experiment:
+                case RateExperimentModel():
+                    result_model = self._run_rate_measurement(cd48, experiment)
+                case CoincidenceExperimentModel():
+                    result_model = self._run_coincidence_measurement(cd48, experiment)
+                case ContinuousExperimentModel():
+                    result_model = self._run_continuous_collection(cd48, experiment)
+                case VoltageSweepExperimentModel():
+                    result_model = self._run_voltage_sweep(cd48, experiment)
 
             # Save results if output is configured
-            self._save_results(result)
+            self._save_results(result_model)
 
+            # Return as dict for backward compatibility
+            result: ExperimentResult = result_model.model_dump(mode="python")
             return result
 
         finally:
             cd48.close()
 
-    def _run_rate_measurement(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
+    def _run_rate_measurement(
+        self, cd48: CD48, config: RateExperimentModel
+    ) -> ExperimentResultModel:
         """Run rate measurement experiment."""
-        try:
-            config = RateExperimentModel(**experiment)  # type: ignore[arg-type]
-        except ValidationError as e:
-            raise CD48ConfigError(f"Invalid rate experiment configuration: {e}") from e
-
         self._logger.info(
             f"Rate measurement: channel={config.channel}, duration={config.duration}s, "
             f"repeats={config.repeats}"
@@ -264,38 +428,35 @@ class ExperimentRunner:
                 time.sleep(0.1)  # Small delay between measurements
 
         # Calculate statistics if multiple measurements
-        summary: RateResult | RateSummary
+        data: RateMeasurementModel | RateSummaryModel
         if len(results) > 1:
             rates = [r["rate"] for r in results]
-            summary = RateSummary(
+            # Convert TypedDict results to Pydantic models
+            measurements = [RateMeasurementModel.model_validate(r) for r in results]
+            data = RateSummaryModel(
                 channel=config.channel,
                 duration=config.duration,
                 repeats=config.repeats,
                 mean_rate=float(np.mean(rates)),
                 std_rate=float(np.std(rates)),
-                measurements=results,
+                measurements=measurements,
             )
         else:
-            summary = results[0]
+            data = RateMeasurementModel.model_validate(results[0])
 
-        return {
-            "config": self.config,
-            "data": summary,
-            "metadata": {
-                "experiment_type": "rate",
-                "timestamp": time.time(),
-            },
-        }
+        return ExperimentResultModel(
+            config=self._config_model,
+            data=data,
+            metadata=ExperimentMetadataModel(
+                experiment_type="rate",
+                timestamp=time.time(),
+            ),
+        )
 
     def _run_coincidence_measurement(
-        self, cd48: CD48, experiment: dict[str, object]
-    ) -> ExperimentResult:
+        self, cd48: CD48, config: CoincidenceExperimentModel
+    ) -> ExperimentResultModel:
         """Run coincidence measurement experiment."""
-        try:
-            config = CoincidenceExperimentModel(**experiment)  # type: ignore[arg-type]
-        except ValidationError as e:
-            raise CD48ConfigError(f"Invalid coincidence experiment configuration: {e}") from e
-
         self._logger.info(
             f"Coincidence measurement: duration={config.duration}s, "
             f"channels A={config.singles_a_channel}, B={config.singles_b_channel}, "
@@ -317,37 +478,34 @@ class ExperimentRunner:
                 time.sleep(0.1)
 
         # Calculate statistics if multiple measurements
-        summary: CoincidenceResult | CoincidenceSummary
+        data: CoincidenceMeasurementModel | CoincidenceSummaryModel
         if len(results) > 1:
             true_rates = [r["true_coincidence_rate"] for r in results]
-            summary = CoincidenceSummary(
+            # Convert TypedDict results to Pydantic models
+            measurements = [CoincidenceMeasurementModel.model_validate(r) for r in results]
+            data = CoincidenceSummaryModel(
                 duration=config.duration,
                 repeats=config.repeats,
                 mean_true_coincidence_rate=float(np.mean(true_rates)),
                 std_true_coincidence_rate=float(np.std(true_rates)),
-                measurements=results,
+                measurements=measurements,
             )
         else:
-            summary = results[0]
+            data = CoincidenceMeasurementModel.model_validate(results[0])
 
-        return {
-            "config": self.config,
-            "data": summary,
-            "metadata": {
-                "experiment_type": "coincidence",
-                "timestamp": time.time(),
-            },
-        }
+        return ExperimentResultModel(
+            config=self._config_model,
+            data=data,
+            metadata=ExperimentMetadataModel(
+                experiment_type="coincidence",
+                timestamp=time.time(),
+            ),
+        )
 
     def _run_continuous_collection(
-        self, cd48: CD48, experiment: dict[str, object]
-    ) -> ExperimentResult:
+        self, cd48: CD48, config: ContinuousExperimentModel
+    ) -> ExperimentResultModel:
         """Run continuous data collection experiment."""
-        try:
-            config = ContinuousExperimentModel(**experiment)  # type: ignore[arg-type]
-        except ValidationError as e:
-            raise CD48ConfigError(f"Invalid continuous experiment configuration: {e}") from e
-
         self._logger.info(
             f"Continuous collection: duration={config.duration}s, "
             f"interval={config.interval}s, channels={config.channels}"
@@ -363,13 +521,13 @@ class ExperimentRunner:
             cd48.clear_counts()
             time.sleep(config.interval)
 
-            data = cd48.get_counts(human_readable=False)
+            counts_data = cd48.get_counts(human_readable=False)
             elapsed = time.time() - start_time
             timestamps.append(elapsed)
 
             for ch in config.channels:
-                if 0 <= ch < len(data["counts"]):
-                    channel_data[ch].append(data["counts"][ch])
+                if 0 <= ch < len(counts_data["counts"]):
+                    channel_data[ch].append(counts_data["counts"][ch])
 
             self._logger.debug(f"Measurement {i+1}/{num_measurements}: t={elapsed:.1f}s")
 
@@ -378,30 +536,27 @@ class ExperimentRunner:
             ch: [count / config.interval for count in counts] for ch, counts in channel_data.items()
         }
 
-        continuous_data: ContinuousData = {
-            "timestamps": timestamps,
-            "counts": channel_data,
-            "rates": rates,
-            "interval": config.interval,
-            "channels": config.channels,
-        }
+        data = ContinuousDataModel(
+            timestamps=timestamps,
+            counts=channel_data,
+            rates=rates,
+            interval=config.interval,
+            channels=list(config.channels),
+        )
 
-        return {
-            "config": self.config,
-            "data": continuous_data,
-            "metadata": {
-                "experiment_type": "continuous",
-                "timestamp": time.time(),
-            },
-        }
+        return ExperimentResultModel(
+            config=self._config_model,
+            data=data,
+            metadata=ExperimentMetadataModel(
+                experiment_type="continuous",
+                timestamp=time.time(),
+            ),
+        )
 
-    def _run_voltage_sweep(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
+    def _run_voltage_sweep(
+        self, cd48: CD48, config: VoltageSweepExperimentModel
+    ) -> ExperimentResultModel:
         """Run voltage sweep experiment."""
-        try:
-            config = VoltageSweepExperimentModel(**experiment)  # type: ignore[arg-type]
-        except ValidationError as e:
-            raise CD48ConfigError(f"Invalid voltage sweep experiment configuration: {e}") from e
-
         voltages = np.linspace(config.voltage_min, config.voltage_max, config.voltage_steps)
 
         self._logger.info(
@@ -420,12 +575,12 @@ class ExperimentRunner:
             # Measure
             cd48.clear_counts()
             time.sleep(config.measurement_time)
-            data = cd48.get_counts(human_readable=False)
+            counts_data = cd48.get_counts(human_readable=False)
 
             voltage_data.append(float(voltage))
             for ch in config.channels:
-                if 0 <= ch < len(data["counts"]):
-                    channel_data[ch].append(data["counts"][ch])
+                if 0 <= ch < len(counts_data["counts"]):
+                    channel_data[ch].append(counts_data["counts"][ch])
 
             self._logger.debug(f"Voltage {i+1}/{config.voltage_steps}: {voltage:.2f}V")
 
@@ -438,121 +593,90 @@ class ExperimentRunner:
             for ch, counts in channel_data.items()
         }
 
-        sweep_data: VoltageSweepData = {
-            "voltages": voltage_data,
-            "counts": channel_data,
-            "rates": rates,
-            "measurement_time": config.measurement_time,
-            "channels": config.channels,
-        }
+        data = VoltageSweepDataModel(
+            voltages=voltage_data,
+            counts=channel_data,
+            rates=rates,
+            measurement_time=config.measurement_time,
+            channels=list(config.channels),
+        )
 
-        return {
-            "config": self.config,
-            "data": sweep_data,
-            "metadata": {
-                "experiment_type": "voltage_sweep",
-                "timestamp": time.time(),
-            },
-        }
+        return ExperimentResultModel(
+            config=self._config_model,
+            data=data,
+            metadata=ExperimentMetadataModel(
+                experiment_type="voltage_sweep",
+                timestamp=time.time(),
+            ),
+        )
 
-    def _save_results(self, result: ExperimentResult) -> None:
+    def _save_results(self, result: ExperimentResultModel) -> None:
         """Save experiment results to file."""
-        if "output" not in self.config:
+        output = self._config_model.output
+
+        if not output.save_json and not output.save_csv:
             return
 
-        output = self.config["output"]
-        if not isinstance(output, dict):
-            return
-
-        # Create output directory if specified
-        directory_obj = output.get("directory", ".")
-        output_dir = Path(directory_obj) if isinstance(directory_obj, str) else Path(".")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # Create output directory
+        output.directory.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        exp_name_obj = self.config.get("name", "experiment")
-        exp_name = str(exp_name_obj) if exp_name_obj is not None else "experiment"
+        exp_name = self._config_model.name
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         base_name = f"{exp_name}_{timestamp}"
 
-        # Save JSON
-        if output.get("json", False):
-            json_path = output_dir / f"{base_name}.json"
+        # Save JSON using Pydantic's serialization
+        if output.save_json:
+            json_path = output.directory / f"{base_name}.json"
             with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=2, default=str)
+                # Use model_dump for clean JSON serialization
+                json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
             self._logger.info(f"Results saved to {json_path}")
 
         # Save CSV
-        if output.get("csv", False):
-            csv_path = output_dir / f"{base_name}.csv"
+        if output.save_csv:
+            csv_path = output.directory / f"{base_name}.csv"
             self._save_csv(result, csv_path)
             self._logger.info(f"Results saved to {csv_path}")
 
-    def _save_csv(self, result: ExperimentResult, path: Path) -> None:
+    def _save_csv(self, result: ExperimentResultModel, path: Path) -> None:
         """Save experiment results to CSV file."""
         import csv
 
-        data = result.get("data")
-        metadata = result.get("metadata")
-
-        if data is None or metadata is None:
-            return
-
-        exp_type = metadata.get("experiment_type", "")
+        data = result.data
+        exp_type = result.metadata.experiment_type
 
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
-            if exp_type == "continuous":
-                # Continuous data format
-                if isinstance(data, dict) and "timestamps" in data:
-                    # Type-safe extraction with runtime checks
-                    timestamps = data.get("timestamps")
-                    channels = data.get("channels")
-                    rates = data.get("rates")
+            if exp_type == "continuous" and isinstance(data, ContinuousDataModel):
+                header = ["time"] + [f"ch{ch}_rate" for ch in data.channels]
+                writer.writerow(header)
 
-                    if (
-                        isinstance(timestamps, list)
-                        and isinstance(channels, list)
-                        and isinstance(rates, dict)
-                    ):
-                        header = ["time"] + [f"ch{ch}_rate" for ch in channels]
-                        writer.writerow(header)
+                for i, timestamp in enumerate(data.timestamps):
+                    row = [timestamp] + [
+                        data.rates[ch][i] if ch in data.rates and i < len(data.rates[ch]) else 0
+                        for ch in data.channels
+                    ]
+                    writer.writerow(row)
 
-                        for i, x_val in enumerate(timestamps):
-                            row = [x_val] + [
-                                rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
-                                for ch in channels
-                            ]
-                            writer.writerow(row)
+            elif exp_type == "voltage_sweep" and isinstance(data, VoltageSweepDataModel):
+                header = ["voltage"] + [f"ch{ch}_rate" for ch in data.channels]
+                writer.writerow(header)
 
-            elif exp_type == "voltage_sweep":
-                # Voltage sweep data format
-                if isinstance(data, dict) and "voltages" in data:
-                    # Type-safe extraction with runtime checks
-                    voltages = data.get("voltages")
-                    channels = data.get("channels")
-                    rates = data.get("rates")
-
-                    if (
-                        isinstance(voltages, list)
-                        and isinstance(channels, list)
-                        and isinstance(rates, dict)
-                    ):
-                        header = ["voltage"] + [f"ch{ch}_rate" for ch in channels]
-                        writer.writerow(header)
-
-                        for i, x_val in enumerate(voltages):
-                            row = [x_val] + [
-                                rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
-                                for ch in channels
-                            ]
-                            writer.writerow(row)
+                for i, voltage in enumerate(data.voltages):
+                    row = [voltage] + [
+                        data.rates[ch][i] if ch in data.rates and i < len(data.rates[ch]) else 0
+                        for ch in data.channels
+                    ]
+                    writer.writerow(row)
 
             else:
-                # Single measurement or summary format
-                if isinstance(data, dict):
-                    for key, value in data.items():
+                # Single measurement or summary format - dump as key-value pairs
+                result_dict = result.model_dump(mode="python")
+                data_dict = result_dict.get("data", {})
+                if isinstance(data_dict, dict):
+                    for key, value in data_dict.items():
                         if not isinstance(value, (list, dict)):
                             writer.writerow([key, value])
 
