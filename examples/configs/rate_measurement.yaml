@@ -1,0 +1,42 @@
+# Rate Measurement Experiment
+#
+# Simple count rate measurement on a single channel.
+#
+# Use this for:
+#   - Quick detector checks
+#   - Single detector characterization
+#   - Background rate measurements
+#   - Testing and calibration
+
+name: rate_measurement
+description: Single channel count rate measurement
+
+# Device connection settings
+connection:
+  baudrate: 115200
+  timeout: 1.0
+
+# Device configuration
+settings:
+  trigger_level: 0.5  # volts
+  impedance: 50ohm
+
+  channels:
+    "0":  # Singles on detector A
+      A: 1
+      B: 0
+      C: 0
+      D: 0
+
+# Experiment parameters
+experiment:
+  type: rate
+  channel: 0
+  duration: 10.0  # 10 seconds per measurement
+  repeats: 10     # Repeat 10 times for statistics
+
+# Output settings
+output:
+  directory: ./data
+  csv: true
+  json: true

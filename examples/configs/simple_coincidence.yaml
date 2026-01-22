@@ -1,0 +1,56 @@
+# Simple Coincidence Measurement
+#
+# Basic two-detector coincidence experiment for measuring
+# coincident events between detectors A and B.
+#
+# Use this for:
+#   - Testing detector setup
+#   - Measuring coincidence rates
+#   - Accidental coincidence analysis
+
+name: simple_coincidence
+description: Basic two-detector coincidence measurement
+
+# Device connection settings
+connection:
+  # port: /dev/ttyUSB0  # Uncomment to specify port
+  baudrate: 115200
+  timeout: 1.0
+
+# Device configuration
+settings:
+  trigger_level: 0.5  # volts
+  impedance: 50ohm
+
+  channels:
+    "0":  # Singles A
+      A: 1
+      B: 0
+      C: 0
+      D: 0
+    "1":  # Singles B
+      A: 0
+      B: 1
+      C: 0
+      D: 0
+    "4":  # A-B coincidences
+      A: 1
+      B: 1
+      C: 0
+      D: 0
+
+# Experiment parameters
+experiment:
+  type: coincidence
+  duration: 60.0  # 60 seconds per measurement
+  singles_a_channel: 0
+  singles_b_channel: 1
+  coincidence_channel: 4
+  coincidence_window: 25.0e-9  # 25 nanoseconds
+  repeats: 5  # Repeat measurement 5 times for statistics
+
+# Output settings
+output:
+  directory: ./data
+  csv: true
+  json: true
