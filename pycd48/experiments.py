@@ -11,9 +11,10 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import Literal, TypedDict
 
 import numpy as np
+from pydantic import BaseModel, Field, ValidationError
 
 from .cd48 import CD48, CD48ConfigError, CoincidenceResult, RateResult
 
@@ -90,6 +91,50 @@ class ExperimentResult(TypedDict, total=False):
         | VoltageSweepData
     )
     metadata: ExperimentMetadata
+
+
+# Pydantic models for validated experiment configurations
+
+
+class RateExperimentModel(BaseModel):  # type: ignore[explicit-any]
+    """Validated configuration for rate measurement experiments."""
+
+    type: Literal["rate"]
+    channel: int = Field(default=0, ge=0, le=7)
+    duration: float = Field(default=1.0, gt=0)
+    repeats: int = Field(default=1, ge=1)
+
+
+class CoincidenceExperimentModel(BaseModel):  # type: ignore[explicit-any]
+    """Validated configuration for coincidence measurement experiments."""
+
+    type: Literal["coincidence"]
+    duration: float = Field(default=1.0, gt=0)
+    singles_a_channel: int = Field(default=0, ge=0, le=7)
+    singles_b_channel: int = Field(default=1, ge=0, le=7)
+    coincidence_channel: int = Field(default=4, ge=0, le=7)
+    coincidence_window: float = Field(default=25e-9, gt=0)
+    repeats: int = Field(default=1, ge=1)
+
+
+class ContinuousExperimentModel(BaseModel):  # type: ignore[explicit-any]
+    """Validated configuration for continuous collection experiments."""
+
+    type: Literal["continuous"]
+    duration: float = Field(default=60.0, gt=0)
+    interval: float = Field(default=1.0, gt=0)
+    channels: list[int] = Field(default=[0, 1, 4])
+
+
+class VoltageSweepExperimentModel(BaseModel):  # type: ignore[explicit-any]
+    """Validated configuration for voltage sweep experiments."""
+
+    type: Literal["voltage_sweep"]
+    voltage_min: float = Field(default=0.0, ge=0.0, le=4.08)
+    voltage_max: float = Field(default=4.0, ge=0.0, le=4.08)
+    voltage_steps: int = Field(default=20, ge=2)
+    measurement_time: float = Field(default=3.0, gt=0)
+    channels: list[int] = Field(default=[0, 1, 4])
 
 
 class ExperimentRunner:
@@ -200,20 +245,22 @@ class ExperimentRunner:
 
     def _run_rate_measurement(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
         """Run rate measurement experiment."""
-        channel = cast(int, experiment.get("channel", 0))
-        duration = cast(float, experiment.get("duration", 1.0))
-        repeats = cast(int, experiment.get("repeats", 1))
+        try:
+            config = RateExperimentModel(**experiment)  # type: ignore[arg-type]
+        except ValidationError as e:
+            raise CD48ConfigError(f"Invalid rate experiment configuration: {e}") from e
 
         self._logger.info(
-            f"Rate measurement: channel={channel}, duration={duration}s, repeats={repeats}"
+            f"Rate measurement: channel={config.channel}, duration={config.duration}s, "
+            f"repeats={config.repeats}"
         )
 
         results: list[RateResult] = []
-        for i in range(repeats):
-            self._logger.info(f"Measurement {i+1}/{repeats}")
-            result = cd48.measure_rate(channel=channel, duration=duration)
+        for i in range(config.repeats):
+            self._logger.info(f"Measurement {i+1}/{config.repeats}")
+            result = cd48.measure_rate(channel=config.channel, duration=config.duration)
             results.append(result)
-            if repeats > 1 and i < repeats - 1:
+            if config.repeats > 1 and i < config.repeats - 1:
                 time.sleep(0.1)  # Small delay between measurements
 
         # Calculate statistics if multiple measurements
@@ -221,9 +268,9 @@ class ExperimentRunner:
         if len(results) > 1:
             rates = [r["rate"] for r in results]
             summary = RateSummary(
-                channel=channel,
-                duration=duration,
-                repeats=repeats,
+                channel=config.channel,
+                duration=config.duration,
+                repeats=config.repeats,
                 mean_rate=float(np.mean(rates)),
                 std_rate=float(np.std(rates)),
                 measurements=results,
@@ -244,30 +291,29 @@ class ExperimentRunner:
         self, cd48: CD48, experiment: dict[str, object]
     ) -> ExperimentResult:
         """Run coincidence measurement experiment."""
-        duration = cast(float, experiment.get("duration", 1.0))
-        singles_a = cast(int, experiment.get("singles_a_channel", 0))
-        singles_b = cast(int, experiment.get("singles_b_channel", 1))
-        coincidence = cast(int, experiment.get("coincidence_channel", 4))
-        window = cast(float, experiment.get("coincidence_window", 25e-9))
-        repeats = cast(int, experiment.get("repeats", 1))
+        try:
+            config = CoincidenceExperimentModel(**experiment)  # type: ignore[arg-type]
+        except ValidationError as e:
+            raise CD48ConfigError(f"Invalid coincidence experiment configuration: {e}") from e
 
         self._logger.info(
-            f"Coincidence measurement: duration={duration}s, "
-            f"channels A={singles_a}, B={singles_b}, AB={coincidence}, repeats={repeats}"
+            f"Coincidence measurement: duration={config.duration}s, "
+            f"channels A={config.singles_a_channel}, B={config.singles_b_channel}, "
+            f"AB={config.coincidence_channel}, repeats={config.repeats}"
         )
 
         results: list[CoincidenceResult] = []
-        for i in range(repeats):
-            self._logger.info(f"Measurement {i+1}/{repeats}")
+        for i in range(config.repeats):
+            self._logger.info(f"Measurement {i+1}/{config.repeats}")
             result = cd48.measure_coincidence_rate(
-                duration=duration,
-                singles_a_channel=singles_a,
-                singles_b_channel=singles_b,
-                coincidence_channel=coincidence,
-                coincidence_window=window,
+                duration=config.duration,
+                singles_a_channel=config.singles_a_channel,
+                singles_b_channel=config.singles_b_channel,
+                coincidence_channel=config.coincidence_channel,
+                coincidence_window=config.coincidence_window,
             )
             results.append(result)
-            if repeats > 1 and i < repeats - 1:
+            if config.repeats > 1 and i < config.repeats - 1:
                 time.sleep(0.1)
 
         # Calculate statistics if multiple measurements
@@ -275,8 +321,8 @@ class ExperimentRunner:
         if len(results) > 1:
             true_rates = [r["true_coincidence_rate"] for r in results]
             summary = CoincidenceSummary(
-                duration=duration,
-                repeats=repeats,
+                duration=config.duration,
+                repeats=config.repeats,
                 mean_true_coincidence_rate=float(np.mean(true_rates)),
                 std_true_coincidence_rate=float(np.std(true_rates)),
                 measurements=results,
@@ -297,31 +343,31 @@ class ExperimentRunner:
         self, cd48: CD48, experiment: dict[str, object]
     ) -> ExperimentResult:
         """Run continuous data collection experiment."""
-        duration = cast(float, experiment.get("duration", 60.0))
-        interval = cast(float, experiment.get("interval", 1.0))
-        channels_obj = experiment.get("channels", [0, 1, 4])
-        channels = cast(list[int], channels_obj)
+        try:
+            config = ContinuousExperimentModel(**experiment)  # type: ignore[arg-type]
+        except ValidationError as e:
+            raise CD48ConfigError(f"Invalid continuous experiment configuration: {e}") from e
 
         self._logger.info(
-            f"Continuous collection: duration={duration}s, "
-            f"interval={interval}s, channels={channels}"
+            f"Continuous collection: duration={config.duration}s, "
+            f"interval={config.interval}s, channels={config.channels}"
         )
 
-        num_measurements = int(duration / interval)
+        num_measurements = int(config.duration / config.interval)
         timestamps: list[float] = []
-        channel_data: dict[int, list[int]] = {ch: [] for ch in channels}
+        channel_data: dict[int, list[int]] = {ch: [] for ch in config.channels}
 
         start_time = time.time()
 
         for i in range(num_measurements):
             cd48.clear_counts()
-            time.sleep(interval)
+            time.sleep(config.interval)
 
             data = cd48.get_counts(human_readable=False)
             elapsed = time.time() - start_time
             timestamps.append(elapsed)
 
-            for ch in channels:
+            for ch in config.channels:
                 if 0 <= ch < len(data["counts"]):
                     channel_data[ch].append(data["counts"][ch])
 
@@ -329,15 +375,15 @@ class ExperimentRunner:
 
         # Convert to rates (counts per second)
         rates: dict[int, list[float]] = {
-            ch: [count / interval for count in counts] for ch, counts in channel_data.items()
+            ch: [count / config.interval for count in counts] for ch, counts in channel_data.items()
         }
 
         continuous_data: ContinuousData = {
             "timestamps": timestamps,
             "counts": channel_data,
             "rates": rates,
-            "interval": interval,
-            "channels": channels,
+            "interval": config.interval,
+            "channels": config.channels,
         }
 
         return {
@@ -351,22 +397,20 @@ class ExperimentRunner:
 
     def _run_voltage_sweep(self, cd48: CD48, experiment: dict[str, object]) -> ExperimentResult:
         """Run voltage sweep experiment."""
-        v_min = cast(float, experiment.get("voltage_min", 0.0))
-        v_max = cast(float, experiment.get("voltage_max", 4.0))
-        v_steps = cast(int, experiment.get("voltage_steps", 20))
-        measurement_time = cast(float, experiment.get("measurement_time", 3.0))
-        channels_obj = experiment.get("channels", [0, 1, 4])
-        channels = cast(list[int], channels_obj)
+        try:
+            config = VoltageSweepExperimentModel(**experiment)  # type: ignore[arg-type]
+        except ValidationError as e:
+            raise CD48ConfigError(f"Invalid voltage sweep experiment configuration: {e}") from e
 
-        voltages = np.linspace(v_min, v_max, v_steps)
+        voltages = np.linspace(config.voltage_min, config.voltage_max, config.voltage_steps)
 
         self._logger.info(
-            f"Voltage sweep: {v_min}V to {v_max}V, "
-            f"{v_steps} steps, {measurement_time}s per point"
+            f"Voltage sweep: {config.voltage_min}V to {config.voltage_max}V, "
+            f"{config.voltage_steps} steps, {config.measurement_time}s per point"
         )
 
         voltage_data: list[float] = []
-        channel_data: dict[int, list[int]] = {ch: [] for ch in channels}
+        channel_data: dict[int, list[int]] = {ch: [] for ch in config.channels}
 
         for i, voltage in enumerate(voltages):
             # Set DAC voltage
@@ -375,22 +419,22 @@ class ExperimentRunner:
 
             # Measure
             cd48.clear_counts()
-            time.sleep(measurement_time)
+            time.sleep(config.measurement_time)
             data = cd48.get_counts(human_readable=False)
 
             voltage_data.append(float(voltage))
-            for ch in channels:
+            for ch in config.channels:
                 if 0 <= ch < len(data["counts"]):
                     channel_data[ch].append(data["counts"][ch])
 
-            self._logger.debug(f"Voltage {i+1}/{v_steps}: {voltage:.2f}V")
+            self._logger.debug(f"Voltage {i+1}/{config.voltage_steps}: {voltage:.2f}V")
 
         # Set DAC back to 0V
         cd48.set_dac_voltage(0.0)
 
         # Convert to rates
         rates: dict[int, list[float]] = {
-            ch: [count / measurement_time for count in counts]
+            ch: [count / config.measurement_time for count in counts]
             for ch, counts in channel_data.items()
         }
 
@@ -398,8 +442,8 @@ class ExperimentRunner:
             "voltages": voltage_data,
             "counts": channel_data,
             "rates": rates,
-            "measurement_time": measurement_time,
-            "channels": channels,
+            "measurement_time": config.measurement_time,
+            "channels": config.channels,
         }
 
         return {
@@ -422,11 +466,12 @@ class ExperimentRunner:
 
         # Create output directory if specified
         directory_obj = output.get("directory", ".")
-        output_dir = Path(cast(str, directory_obj))
+        output_dir = Path(directory_obj) if isinstance(directory_obj, str) else Path(".")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate filename
-        exp_name = self.config.get("name", "experiment")
+        exp_name_obj = self.config.get("name", "experiment")
+        exp_name = str(exp_name_obj) if exp_name_obj is not None else "experiment"
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         base_name = f"{exp_name}_{timestamp}"
 
@@ -461,38 +506,48 @@ class ExperimentRunner:
             if exp_type == "continuous":
                 # Continuous data format
                 if isinstance(data, dict) and "timestamps" in data:
-                    continuous = cast(ContinuousData, data)
-                    x_data = continuous["timestamps"]
-                    channels = continuous["channels"]
-                    rates = continuous["rates"]
+                    # Type-safe extraction with runtime checks
+                    timestamps = data.get("timestamps")
+                    channels = data.get("channels")
+                    rates = data.get("rates")
 
-                    header = ["time"] + [f"ch{ch}_rate" for ch in channels]
-                    writer.writerow(header)
+                    if (
+                        isinstance(timestamps, list)
+                        and isinstance(channels, list)
+                        and isinstance(rates, dict)
+                    ):
+                        header = ["time"] + [f"ch{ch}_rate" for ch in channels]
+                        writer.writerow(header)
 
-                    for i, x_val in enumerate(x_data):
-                        row = [x_val] + [
-                            rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
-                            for ch in channels
-                        ]
-                        writer.writerow(row)
+                        for i, x_val in enumerate(timestamps):
+                            row = [x_val] + [
+                                rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
+                                for ch in channels
+                            ]
+                            writer.writerow(row)
 
             elif exp_type == "voltage_sweep":
                 # Voltage sweep data format
                 if isinstance(data, dict) and "voltages" in data:
-                    sweep = cast(VoltageSweepData, data)
-                    x_data = sweep["voltages"]
-                    channels = sweep["channels"]
-                    rates = sweep["rates"]
+                    # Type-safe extraction with runtime checks
+                    voltages = data.get("voltages")
+                    channels = data.get("channels")
+                    rates = data.get("rates")
 
-                    header = ["voltage"] + [f"ch{ch}_rate" for ch in channels]
-                    writer.writerow(header)
+                    if (
+                        isinstance(voltages, list)
+                        and isinstance(channels, list)
+                        and isinstance(rates, dict)
+                    ):
+                        header = ["voltage"] + [f"ch{ch}_rate" for ch in channels]
+                        writer.writerow(header)
 
-                    for i, x_val in enumerate(x_data):
-                        row = [x_val] + [
-                            rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
-                            for ch in channels
-                        ]
-                        writer.writerow(row)
+                        for i, x_val in enumerate(voltages):
+                            row = [x_val] + [
+                                rates[ch][i] if ch in rates and i < len(rates[ch]) else 0
+                                for ch in channels
+                            ]
+                            writer.writerow(row)
 
             else:
                 # Single measurement or summary format
