@@ -5,6 +5,8 @@ This module provides a Python interface for the Red Dog Physics CD48
 Coincidence Counter using PySerial for USB communication.
 """
 
+from __future__ import annotations
+
 import logging
 import time
 from types import TracebackType
@@ -465,7 +467,7 @@ class CD48:
             "true_coincidence_rate": true_coincidence_rate,
         }
 
-    def __enter__(self) -> "CD48":
+    def __enter__(self) -> CD48:
         return self
 
     def __exit__(

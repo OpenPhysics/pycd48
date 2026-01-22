@@ -4,10 +4,17 @@ Real-time plotting utilities for CD48 measurements.
 Provides matplotlib-based visualization for count rates.
 """
 
+from __future__ import annotations
+
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from matplotlib.animation import FuncAnimation
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+    from matplotlib.lines import Line2D
+
     from .cd48 import CD48
 
 # Lazy import matplotlib to avoid import errors if not installed
@@ -57,7 +64,7 @@ class RatePlotter:
 
     def __init__(
         self,
-        cd48: "CD48",
+        cd48: CD48,
         channels: list[int] | None = None,
         max_points: int = DEFAULT_MAX_POINTS,
         interval: float = DEFAULT_UPDATE_INTERVAL,
@@ -87,12 +94,12 @@ class RatePlotter:
         self._rates: dict[int, list[float]] = {ch: [] for ch in self.channels}
         self._start_time: float = 0
 
-        self._fig: Any | None = None
-        self._ax: Any | None = None
-        self._lines: dict[int, Any] = {}
-        self._animation: Any | None = None
+        self._fig: Figure | None = None
+        self._ax: Axes | None = None
+        self._lines: dict[int, Line2D] = {}
+        self._animation: FuncAnimation | None = None
 
-    def _init_plot(self) -> list[Any]:
+    def _init_plot(self) -> list[Line2D]:
         """Initialize the plot."""
         assert _plt is not None, "Matplotlib not loaded"
         self._fig, self._ax = _plt.subplots(figsize=DEFAULT_FIGURE_SIZE)
@@ -119,7 +126,7 @@ class RatePlotter:
         self._ax.legend(loc="upper right")
         return list(self._lines.values())
 
-    def _update(self, frame: Any) -> list[Any]:
+    def _update(self, frame: int) -> list[Line2D]:
         """Update function for animation."""
         assert self._ax is not None, "Plot not initialized"
         # Read counts
@@ -221,7 +228,7 @@ class RatePlotter:
 
 
 def plot_rates(
-    cd48: "CD48",
+    cd48: CD48,
     duration: float = 60,
     channels: list[int] | None = None,
     interval: float = 1.0,
