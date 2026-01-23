@@ -122,6 +122,12 @@ exclude = ["examples/"]
 module = "pydantic"
 disallow_any_explicit = false
 
+# Allow Any in experiments.py due to Pydantic model usage
+[[tool.mypy.overrides]]
+module = "pycd48.experiments"
+disallow_any_explicit = false
+warn_unused_ignores = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

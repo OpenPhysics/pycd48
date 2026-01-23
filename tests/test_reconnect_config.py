@@ -117,7 +117,7 @@ class TestCD48FromConfig(unittest.TestCase):
         config_path = self._create_config_file(config)
 
         try:
-            CD48.from_config(config_path, apply_settings=False)
+            CD48.from_config(config_path, apply_settings_flag=False)
 
             # No settings commands should be sent (only init reset)
             write_calls = self.mock_serial.write.call_args_list
