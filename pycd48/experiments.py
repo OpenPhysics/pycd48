@@ -23,7 +23,9 @@ from pydantic import (
     model_validator,
 )
 
-from .cd48 import CD48, CD48ConfigError, CoincidenceResult, RateResult
+from .cd48 import CD48
+from .config import CD48ConfigError
+from .protocols import CoincidenceResult, RateResult
 
 # =============================================================================
 # Custom Types with Validation
@@ -383,7 +385,7 @@ class ExperimentRunner:
         self._logger.info(f"Running experiment from {self.config_path}")
 
         # Create CD48 instance from config
-        cd48 = CD48.from_config(self.config_path, apply_settings=True)
+        cd48 = CD48.from_config(self.config_path, apply_settings_flag=True)
 
         try:
             # Get experiment model - already validated

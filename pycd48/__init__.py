@@ -11,21 +11,19 @@ from importlib.metadata import PackageNotFoundError, version
 
 from .cd48 import (
     CD48,
-    CD48ConfigError,
     CD48ConnectionError,
-    CD48DeviceNotFoundError,
     CD48Error,
     CD48ParseError,
     CD48ResponseError,
     CD48WithReconnect,
-    CoincidenceResult,
-    CountsDict,
     DisconnectCallback,
-    RateResult,
     ReconnectCallback,
 )
+from .config import CD48ConfigError
 from .experiments import ExperimentRunner, run_experiment
 from .logging import DataLogger, log_continuous
+from .protocols import CoincidenceResult, CountsDict, RateResult
+from .utils import CD48DeviceNotFoundError
 
 try:
     __version__ = version("pycd48")

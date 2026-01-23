@@ -14,15 +14,27 @@ from collections.abc import Callable
 from types import TracebackType
 from typing import TYPE_CHECKING, Literal, overload
 
-import serial.tools.list_ports
-
-from .cd48 import (
+from .cd48 import CD48Error, CD48ParseError
+from .constants import (
+    COMMAND_DELAY,
+    CYPRESS_VENDOR_ID,
+    DAC_MAX_BYTE,
+    DAC_MAX_VOLTAGE,
+    DEFAULT_BAUDRATE,
+    DEFAULT_COINCIDENCE_WINDOW,
+    DEFAULT_TIMEOUT,
+    INIT_DELAY,
+    NUM_CHANNELS,
+    REPEAT_INTERVAL_MAX_MS,
+    REPEAT_INTERVAL_MIN_MS,
+)
+from .protocols import CoincidenceResult, CountsDict, RateResult
+from .utils import (
     CD48DeviceNotFoundError,
-    CD48Error,
-    CD48ParseError,
-    CoincidenceResult,
-    CountsDict,
-    RateResult,
+    find_cd48_port,
+    validate_binary_input,
+    validate_channel,
+    voltage_to_dac_byte,
 )
 
 if TYPE_CHECKING:
@@ -43,26 +55,18 @@ class AsyncCD48:
     ...     print(f"Rate: {result['rate']:.2f} Hz")
     """
 
-    # Device initialization delay in seconds
-    INIT_DELAY: float = 2.0
-
-    # Command response delay in seconds
-    COMMAND_DELAY: float = 0.05
-
-    # Hardware constants
-    CYPRESS_VENDOR_ID: int = 0x04B4
-    NUM_CHANNELS: int = 8
-    DAC_MAX_VOLTAGE: float = 4.08
-    DAC_MAX_BYTE: int = 255
-    REPEAT_INTERVAL_MIN_MS: int = 100
-    REPEAT_INTERVAL_MAX_MS: int = 65535
-
-    # Communication defaults
-    DEFAULT_BAUDRATE: int = 115200
-    DEFAULT_TIMEOUT: float = 1.0
-
-    # Physics constants
-    DEFAULT_COINCIDENCE_WINDOW: float = 25e-9
+    # Re-export constants as class attributes for backward compatibility
+    INIT_DELAY: float = INIT_DELAY
+    COMMAND_DELAY: float = COMMAND_DELAY
+    CYPRESS_VENDOR_ID: int = CYPRESS_VENDOR_ID
+    NUM_CHANNELS: int = NUM_CHANNELS
+    DAC_MAX_VOLTAGE: float = DAC_MAX_VOLTAGE
+    DAC_MAX_BYTE: int = DAC_MAX_BYTE
+    REPEAT_INTERVAL_MIN_MS: int = REPEAT_INTERVAL_MIN_MS
+    REPEAT_INTERVAL_MAX_MS: int = REPEAT_INTERVAL_MAX_MS
+    DEFAULT_BAUDRATE: int = DEFAULT_BAUDRATE
+    DEFAULT_TIMEOUT: float = DEFAULT_TIMEOUT
+    DEFAULT_COINCIDENCE_WINDOW: float = DEFAULT_COINCIDENCE_WINDOW
 
     def __init__(
         self,
@@ -94,27 +98,9 @@ class AsyncCD48:
         self._port = port
         self._baudrate = baudrate
         self._timeout = timeout
-        self._init_delay = init_delay if init_delay is not None else self.INIT_DELAY
+        self._init_delay = init_delay if init_delay is not None else INIT_DELAY
         self._ser: aioserial.AioSerial | None = None
         self._connected = False
-
-    def _find_cd48(self) -> str:
-        """Attempt to auto-detect CD48 on serial ports."""
-        ports = serial.tools.list_ports.comports()
-
-        # First pass: look for Cypress VID (more reliable)
-        for port in ports:
-            if port.vid == self.CYPRESS_VENDOR_ID:
-                self._logger.info(f"Found CD48 (Cypress): {port.device} - {port.description}")
-                return str(port.device)
-
-        # Second pass: fall back to description matching
-        for port in ports:
-            if "USB" in port.description or "Serial" in port.description:
-                self._logger.info(f"Found potential device: {port.device} - {port.description}")
-                return str(port.device)
-
-        raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
 
     async def connect(self) -> None:
         """
@@ -136,7 +122,7 @@ class AsyncCD48:
                 "aioserial is required for async support. Install with: pip install aioserial"
             ) from e
 
-        port = self._port if self._port is not None else self._find_cd48()
+        port = self._port if self._port is not None else find_cd48_port(logger=self._logger)
         self._ser = aio.AioSerial(port=port, baudrate=self._baudrate, timeout=self._timeout)
 
         if self._init_delay > 0:
@@ -232,18 +218,15 @@ class AsyncCD48:
         A, B, C, D : int (0 or 1)
             Which inputs to monitor (1=on, 0=off)
         """
-        if not 0 <= channel < self.NUM_CHANNELS:
-            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
+        validate_channel(channel)
         for name, value in [("A", A), ("B", B), ("C", C), ("D", D)]:
-            if value not in (0, 1):
-                raise ValueError(f"{name} must be 0 or 1, got {value}")
+            validate_binary_input(name, value)
         command = f"S{channel}{A}{B}{C}{D}"
         return await self._send_command(command)
 
     async def set_trigger_level(self, voltage: float) -> str:
         """Set trigger level voltage (0.0 to 4.08V)."""
-        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
-        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
+        byte_val = voltage_to_dac_byte(voltage)
         return await self._send_command(f"L{byte_val}")
 
     async def set_impedance_50ohm(self) -> str:
@@ -282,8 +265,7 @@ class AsyncCD48:
 
     async def set_dac_voltage(self, voltage: float) -> str:
         """Set DAC output voltage (0.0 to 4.08V)."""
-        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
-        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
+        byte_val = voltage_to_dac_byte(voltage)
         return await self._send_command(f"V{byte_val}")
 
     async def get_version(self) -> str:
@@ -322,8 +304,7 @@ class AsyncCD48:
         --------
         RateResult : dict with counts, duration, rate, and channel
         """
-        if not 0 <= channel < self.NUM_CHANNELS:
-            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
+        validate_channel(channel)
 
         await self.clear_counts()
         await asyncio.sleep(duration)

@@ -7,22 +7,45 @@ Coincidence Counter using PySerial for USB communication.
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
-from typing import Literal, TypedDict, overload
+from typing import Literal, overload
 
 import serial
 import serial.tools.list_ports
 
-
-class CD48Error(Exception):
-    """Base exception for CD48 errors."""
-
-    pass
+from .config import (
+    apply_settings,
+    extract_connection_settings,
+    load_config_file,
+)
+from .constants import (
+    COMMAND_DELAY,
+    CYPRESS_VENDOR_ID,
+    DAC_MAX_BYTE,
+    DAC_MAX_VOLTAGE,
+    DATA_COMMANDS,
+    DEFAULT_BAUDRATE,
+    DEFAULT_COINCIDENCE_WINDOW,
+    DEFAULT_TIMEOUT,
+    INIT_DELAY,
+    NUM_CHANNELS,
+    REPEAT_INTERVAL_MAX_MS,
+    REPEAT_INTERVAL_MIN_MS,
+    SETTING_COMMANDS,
+)
+from .protocols import CoincidenceResult, CountsDict, RateResult
+from .utils import CD48DeviceNotFoundError as CD48DeviceNotFoundError
+from .utils import CD48Error as CD48Error
+from .utils import (
+    find_cd48_port,
+    validate_binary_input,
+    validate_channel,
+    voltage_to_dac_byte,
+)
 
 
 class CD48ParseError(CD48Error):
@@ -31,20 +54,8 @@ class CD48ParseError(CD48Error):
     pass
 
 
-class CD48DeviceNotFoundError(CD48Error):
-    """Raised when CD48 device cannot be found."""
-
-    pass
-
-
 class CD48ConnectionError(CD48Error):
     """Raised when connection to CD48 fails or is lost."""
-
-    pass
-
-
-class CD48ConfigError(CD48Error):
-    """Raised when configuration file is invalid."""
 
     pass
 
@@ -60,84 +71,21 @@ DisconnectCallback = Callable[[], None]
 ReconnectCallback = Callable[[], None]
 
 
-class CountsDict(TypedDict):
-    """Type definition for parsed counts data."""
-
-    counts: list[int]
-    overflow: int
-
-
-class RateResult(TypedDict):
-    """Type definition for rate measurement results."""
-
-    counts: int
-    duration: float
-    rate: float
-    channel: int
-
-
-class CoincidenceResult(TypedDict):
-    """Type definition for coincidence measurement results."""
-
-    singles_a: int
-    singles_b: int
-    coincidences: int
-    duration: float
-    rate_a: float
-    rate_b: float
-    coincidence_rate: float
-    accidental_rate: float
-    true_coincidence_rate: float
-
-
 class CD48:
     """Interface for Red Dog Physics CD48 Coincidence Counter"""
 
-    # Device initialization delay in seconds. The CD48 uses a Cypress PSoC5 chip
-    # which requires time to enumerate the USB interface and initialize the serial
-    # buffer after connection. 2 seconds is conservative; 1 second may work.
-    INIT_DELAY: float = 2.0
-
-    # Command response delay in seconds. Small delay after sending a command
-    # to allow the device firmware to process and respond. 50ms is sufficient
-    # for most commands.
-    COMMAND_DELAY: float = 0.05
-
-    # Hardware constants
-    # USB Vendor ID for Cypress PSoC5 chip used in CD48
-    CYPRESS_VENDOR_ID: int = 0x04B4
-
-    # Number of counters/channels available on the CD48 device
-    NUM_CHANNELS: int = 8
-
-    # DAC voltage range: The CD48 uses an 8-bit DAC with a 0-4.08V output range
-    # Maximum output voltage in volts
-    DAC_MAX_VOLTAGE: float = 4.08
-    # Maximum byte value for 8-bit DAC
-    DAC_MAX_BYTE: int = 255
-
-    # Auto-repeat interval limits in milliseconds
-    # Minimum interval to prevent overwhelming the USB interface
-    REPEAT_INTERVAL_MIN_MS: int = 100
-    # Maximum interval (16-bit unsigned integer limit)
-    REPEAT_INTERVAL_MAX_MS: int = 65535
-
-    # Communication defaults
-    # Default baud rate for USB serial communication
-    DEFAULT_BAUDRATE: int = 115200
-    # Default timeout for serial read operations in seconds
-    DEFAULT_TIMEOUT: float = 1.0
-
-    # Physics constants
-    # Default coincidence window in seconds (25 nanoseconds)
-    # This is the time window for counting coincident events
-    DEFAULT_COINCIDENCE_WINDOW: float = 25e-9
-
-    # Commands that expect numeric/data responses (not just OK)
-    _DATA_COMMANDS: set[str] = {"c", "C", "p", "P", "E", "v", "H"}
-
-    # Commands that modify settings (expect acknowledgment)
-    _SETTING_COMMANDS: set[str] = {"S", "L", "z", "Z", "r", "R", "V", "T"}
+    # Re-export constants as class attributes for backward compatibility
+    INIT_DELAY: float = INIT_DELAY
+    COMMAND_DELAY: float = COMMAND_DELAY
+    CYPRESS_VENDOR_ID: int = CYPRESS_VENDOR_ID
+    NUM_CHANNELS: int = NUM_CHANNELS
+    DAC_MAX_VOLTAGE: float = DAC_MAX_VOLTAGE
+    DAC_MAX_BYTE: int = DAC_MAX_BYTE
+    REPEAT_INTERVAL_MIN_MS: int = REPEAT_INTERVAL_MIN_MS
+    REPEAT_INTERVAL_MAX_MS: int = REPEAT_INTERVAL_MAX_MS
+    DEFAULT_BAUDRATE: int = DEFAULT_BAUDRATE
+    DEFAULT_TIMEOUT: float = DEFAULT_TIMEOUT
+    DEFAULT_COINCIDENCE_WINDOW: float = DEFAULT_COINCIDENCE_WINDOW
 
     def __init__(
         self,
@@ -171,11 +119,11 @@ class CD48:
             - Raises CD48ResponseError on unexpected responses
         """
         self._logger = logging.getLogger(__name__)
-        self._init_delay = init_delay if init_delay is not None else self.INIT_DELAY
+        self._init_delay = init_delay if init_delay is not None else INIT_DELAY
         self._strict_mode = strict_mode
 
         if port is None:
-            port = self._find_cd48()
+            port = find_cd48_port(logger=self._logger)
 
         self._port = port
         self._baudrate = baudrate
@@ -190,7 +138,7 @@ class CD48:
     def from_config(
         cls,
         config_path: str | Path,
-        apply_settings: bool = True,
+        apply_settings_flag: bool = True,
     ) -> CD48:
         """
         Create a CD48 instance from a configuration file.
@@ -241,32 +189,10 @@ class CD48:
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-        config = cls._load_config_file(config_path)
+        config = load_config_file(config_path)
 
-        # Extract connection settings
-        connection_raw = config.get("connection", {})
-        connection = connection_raw if isinstance(connection_raw, dict) else {}
-
-        port_val = connection.get("port")
-        port: str | None = str(port_val) if port_val is not None else None
-
-        baudrate_val = connection.get("baudrate", cls.DEFAULT_BAUDRATE)
-        baudrate: int = (
-            int(baudrate_val) if isinstance(baudrate_val, (int, float)) else cls.DEFAULT_BAUDRATE
-        )
-
-        timeout_val = connection.get("timeout", cls.DEFAULT_TIMEOUT)
-        timeout: float = (
-            float(timeout_val) if isinstance(timeout_val, (int, float)) else cls.DEFAULT_TIMEOUT
-        )
-
-        init_delay_val = connection.get("init_delay")
-        init_delay: float | None = (
-            float(init_delay_val) if isinstance(init_delay_val, (int, float)) else None
-        )
-
-        strict_mode_val = connection.get("strict_mode", False)
-        strict_mode: bool = bool(strict_mode_val) if strict_mode_val is not None else False
+        # Extract connection settings using unified function
+        port, baudrate, timeout, init_delay, strict_mode = extract_connection_settings(config)
 
         # Create instance
         instance = cls(
@@ -277,85 +203,13 @@ class CD48:
             strict_mode=strict_mode,
         )
 
-        # Apply device settings if requested
-        if apply_settings:
+        # Apply device settings if requested using unified function
+        if apply_settings_flag:
             settings_raw = config.get("settings", {})
             settings = settings_raw if isinstance(settings_raw, dict) else {}
-            instance._apply_config_settings(settings)
+            apply_settings(instance, settings, logger=instance._logger)
 
         return instance
-
-    @staticmethod
-    def _load_config_file(config_path: Path) -> dict[str, object]:
-        """Load configuration from JSON or YAML file."""
-        suffix = config_path.suffix.lower()
-
-        with open(config_path, encoding="utf-8") as f:
-            if suffix == ".json":
-                try:
-                    result: dict[str, object] = json.load(f)
-                    return result
-                except json.JSONDecodeError as e:
-                    raise CD48ConfigError(f"Invalid JSON in config file: {e}") from e
-            elif suffix in (".yaml", ".yml"):
-                try:
-                    import yaml  # type: ignore[import-untyped]
-                except ImportError as e:
-                    raise CD48ConfigError(
-                        "PyYAML is required for YAML config files. "
-                        "Install with: pip install pyyaml"
-                    ) from e
-                try:
-                    result = yaml.safe_load(f)
-                    return result if result is not None else {}
-                except yaml.YAMLError as e:
-                    raise CD48ConfigError(f"Invalid YAML in config file: {e}") from e
-            else:
-                raise CD48ConfigError(
-                    f"Unsupported config file format: {suffix}. Use .json or .yaml/.yml"
-                )
-
-    def _apply_config_settings(self, settings: dict[str, object]) -> None:
-        """Apply device settings from configuration."""
-        # Set trigger level
-        if "trigger_level" in settings:
-            trigger = settings["trigger_level"]
-            if isinstance(trigger, (int, float)):
-                self.set_trigger_level(float(trigger))
-
-        # Set impedance
-        if "impedance" in settings:
-            impedance = settings["impedance"]
-            if impedance == "50ohm":
-                self.set_impedance_50ohm()
-            elif impedance == "highz":
-                self.set_impedance_highz()
-            else:
-                self._logger.warning(f"Unknown impedance setting: {impedance}")
-
-        # Set DAC voltage
-        if "dac_voltage" in settings:
-            dac = settings["dac_voltage"]
-            if isinstance(dac, (int, float)):
-                self.set_dac_voltage(float(dac))
-
-        # Configure channels
-        if "channels" in settings:
-            channels = settings["channels"]
-            if isinstance(channels, dict):
-                for ch_str, ch_config in channels.items():
-                    try:
-                        ch_num = int(ch_str)
-                        if isinstance(ch_config, dict):
-                            self.set_channel(
-                                ch_num,
-                                A=int(ch_config.get("A", 0)),
-                                B=int(ch_config.get("B", 0)),
-                                C=int(ch_config.get("C", 0)),
-                                D=int(ch_config.get("D", 0)),
-                            )
-                    except (ValueError, TypeError) as e:
-                        self._logger.warning(f"Invalid channel config {ch_str}: {e}")
 
     @property
     def is_connected(self) -> bool:
@@ -405,7 +259,7 @@ class CD48:
             pass  # Ignore errors when closing broken connection
 
         # Determine port
-        port = self._port if self._port is not None else self._find_cd48()
+        port = self._port if self._port is not None else find_cd48_port(logger=self._logger)
 
         # Reconnect with minimal delay (device already initialized)
         delay = init_delay if init_delay is not None else 0
@@ -418,25 +272,6 @@ class CD48:
             self._logger.info(f"Reconnected to CD48 on {port}")
         except serial.SerialException as e:
             raise CD48ConnectionError(f"Failed to reconnect to CD48: {e}") from e
-
-    def _find_cd48(self) -> str:
-        """Attempt to auto-detect CD48 on serial ports"""
-        ports = serial.tools.list_ports.comports()
-
-        # First pass: look for Cypress VID (more reliable)
-        for port in ports:
-            # CD48 uses Cypress PSoC5 chip
-            if port.vid == self.CYPRESS_VENDOR_ID:
-                self._logger.info(f"Found CD48 (Cypress): {port.device} - {port.description}")
-                return str(port.device)
-
-        # Second pass: fall back to description matching
-        for port in ports:
-            if "USB" in port.description or "Serial" in port.description:
-                self._logger.info(f"Found potential device: {port.device} - {port.description}")
-                return str(port.device)
-
-        raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
 
     def _send_command(self, command: str) -> str:
         """Send command and return response."""
@@ -473,7 +308,7 @@ class CD48:
         cmd_char = command[0] if command else ""
 
         # Validate data commands - should return data, not error
-        if cmd_char in self._DATA_COMMANDS:
+        if cmd_char in DATA_COMMANDS:
             # 'c' command should return space-separated numbers
             if cmd_char == "c":
                 parts = response.split()
@@ -497,7 +332,7 @@ class CD48:
                     )
 
         # Log response for setting commands if debug logging is enabled
-        elif cmd_char.upper() in {c.upper() for c in self._SETTING_COMMANDS}:
+        elif cmd_char.upper() in {c.upper() for c in SETTING_COMMANDS}:
             self._logger.debug(f"Command '{command}' response: '{response}'")
 
     @overload
@@ -594,11 +429,9 @@ class CD48:
         ValueError
             If channel is not 0-7 or if A, B, C, D are not 0 or 1
         """
-        if not 0 <= channel < self.NUM_CHANNELS:
-            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
+        validate_channel(channel)
         for name, value in [("A", A), ("B", B), ("C", C), ("D", D)]:
-            if value not in (0, 1):
-                raise ValueError(f"{name} must be 0 or 1, got {value}")
+            validate_binary_input(name, value)
         command = f"S{channel}{A}{B}{C}{D}"
         return self._send_command(command)
 
@@ -611,10 +444,7 @@ class CD48:
         voltage : float
             Voltage threshold (0.0 to 4.08V)
         """
-        # Convert voltage to byte value for 8-bit DAC
-        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
-        # Clamp to valid range per hardware spec
-        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
+        byte_val = voltage_to_dac_byte(voltage)
         return self._send_command(f"L{byte_val}")
 
     def set_impedance_50ohm(self) -> str:
@@ -678,9 +508,7 @@ class CD48:
         voltage : float
             Output voltage (0.0 to 4.08V)
         """
-        byte_val = int((voltage / self.DAC_MAX_VOLTAGE) * self.DAC_MAX_BYTE)
-        # Clamp to valid range per hardware spec
-        byte_val = max(0, min(self.DAC_MAX_BYTE, byte_val))
+        byte_val = voltage_to_dac_byte(voltage)
         return self._send_command(f"V{byte_val}")
 
     def get_version(self) -> str:
@@ -721,8 +549,7 @@ class CD48:
         >>> result = cd48.measure_rate(channel=0, duration=10)
         >>> print(f"Rate: {result['rate']:.2f} Hz")
         """
-        if not 0 <= channel < self.NUM_CHANNELS:
-            raise ValueError(f"Channel must be 0-{self.NUM_CHANNELS-1}, got {channel}")
+        validate_channel(channel)
 
         self.clear_counts()
         time.sleep(duration)
