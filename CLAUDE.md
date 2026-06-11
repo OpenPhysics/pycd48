@@ -18,10 +18,10 @@ uv run pytest --cov=pycd48 --cov-report=term-missing
 uv run black pycd48/ tests/          # Format code
 uv run ruff check pycd48/ tests/     # Lint code
 uv run ruff check --fix pycd48/      # Auto-fix lint issues
-uv run mypy pycd48/                  # Type checking
+uv run mypy pycd48/ --ignore-missing-imports  # Type checking
 
 # Check all (what CI runs)
-uv run black --check pycd48/ tests/ && uv run ruff check pycd48/ tests/ && uv run mypy pycd48/
+uv run black --check pycd48/ tests/ && uv run ruff check pycd48/ tests/ && uv run mypy pycd48/ --ignore-missing-imports
 ```
 
 ## Project Structure

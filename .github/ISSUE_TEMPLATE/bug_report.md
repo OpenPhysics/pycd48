@@ -23,7 +23,7 @@ What actually happened.
 
 ## Environment
 - **OS**: [e.g., Ubuntu 22.04, Windows 11, macOS 13]
-- **Python version**: [e.g., 3.10.5]
+- **Python version**: [e.g., 3.13.7]
 - **pycd48 version**: [e.g., 0.1.0]
 - **CD48 firmware version**: [if known]
 - **Installation method**: [pip, source]

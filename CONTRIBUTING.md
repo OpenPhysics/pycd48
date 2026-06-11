@@ -35,7 +35,7 @@ This project adheres to a code of conduct that all contributors are expected to 
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12 or higher (3.13 recommended for development)
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
 ### Setting Up Development Environment
@@ -241,7 +241,7 @@ Example:
 
 **Environment:**
 - OS: Windows 11
-- Python: 3.10.5
+- Python: 3.13.7
 - pycd48: 0.1.0
 
 **Steps to Reproduce:**

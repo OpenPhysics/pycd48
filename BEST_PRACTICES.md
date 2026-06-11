@@ -7,7 +7,7 @@ This document outlines the best practices and recommendations implemented in thi
 ### 1. Testing ✓
 - **Unit Tests**: Comprehensive test suite in `tests/` directory
 - **Mocking**: Hardware dependencies mocked for testing without physical device
-- **Coverage**: Code coverage reporting via pytest-cov
+- **Coverage**: Code coverage reporting via pytest-cov (~77%)
 - **CI Integration**: Automated testing on every commit via GitHub Actions
 
 **Run tests:**
@@ -17,15 +17,16 @@ pytest tests/ -v --cov=pycd48
 
 ### 2. Continuous Integration/Deployment ✓
 - **GitHub Actions**: `.github/workflows/ci.yml`
-  - Tests on multiple OS (Ubuntu, Windows, macOS)
-  - Tests on multiple Python versions (3.10-3.13)
-  - Automated code quality checks
+  - Tests on Ubuntu and Windows
+  - Tests on Python 3.12 and 3.13
+  - Lint job: Black, Ruff, Mypy on `pycd48/`
+  - Example syntax checks via `py_compile`
   - Coverage reporting to Codecov
 
 ### 3. Code Quality Tools ✓
-- **Black**: Automatic code formatting
+- **Black**: Automatic code formatting (line length 100)
 - **Ruff**: Fast linting and style checking
-- **MyPy**: Static type checking
+- **MyPy**: Static type checking on `pycd48/`
 - **Pre-commit hooks**: Automatic checks before commits
 
 **Setup pre-commit:**
@@ -34,11 +35,11 @@ pip install pre-commit
 pre-commit install
 ```
 
-**Manual code quality checks:**
+**Manual code quality checks (matches CI):**
 ```bash
 black pycd48/ tests/
 ruff check pycd48/ tests/
-mypy pycd48/
+mypy pycd48/ --ignore-missing-imports
 ```
 
 ### 4. Documentation ✓
@@ -46,21 +47,28 @@ mypy pycd48/
 - **CONTRIBUTING.md**: Contribution guidelines
 - **CHANGELOG.md**: Version history tracking
 - **Docstrings**: Google-style docstrings for all public APIs
-- **Examples**: 10 well-documented example scripts
+- **Examples**: 11 example scripts plus `pycd48_tutorial.ipynb`
 
 ### 5. Project Structure ✓
 ```
 pycd48/
 ├── .github/
 │   ├── workflows/        # CI/CD pipelines
+│   ├── dependabot.yml    # Dependency updates
 │   └── ISSUE_TEMPLATE/   # Issue templates
 ├── pycd48/              # Main package
 │   ├── __init__.py
-│   ├── cd48.py          # Core implementation
-│   ├── logging.py       # Logging utilities
+│   ├── cd48.py          # Core CD48 implementation
+│   ├── async_cd48.py    # Async CD48 classes
+│   ├── experiments.py   # YAML experiment runner (Pydantic)
+│   ├── config.py        # Device configuration from files
+│   ├── constants.py     # Protocol constants
+│   ├── protocols.py     # TypedDict definitions
+│   ├── utils.py         # Device discovery utilities
+│   ├── logging.py       # DataLogger for CSV/JSON export
 │   ├── plotting.py      # Visualization support
 │   └── py.typed         # PEP 561 marker
-├── examples/            # Example scripts
+├── examples/            # Example scripts and configs
 ├── tests/               # Unit tests
 ├── README.md
 ├── CONTRIBUTING.md
@@ -81,78 +89,35 @@ pycd48/
 - **uv.lock**: Deterministic dependency locking
 - **uv sync**: Fast, reliable dependency installation
 - **Version pinning**: Minimum versions specified
+- **Optional extras**: `async`, `yaml`, `all`, `dev`, `docs`
 
 ### 8. Issue and PR Templates ✓
 - **Bug report template**: Structured bug reporting
 - **Feature request template**: Enhancement proposals
 - **Clear guidelines**: In CONTRIBUTING.md
 
-## 📋 Additional Recommendations
+### 9. Error Handling and Configuration ✓
+- **Custom exceptions**: `CD48Error`, `CD48ConnectionError`, `CD48ResponseError`, etc.
+- **Structured logging**: `logging` module used across core modules
+- **YAML configuration**: Experiment and device configs via Pydantic models
+- **Async support**: `AsyncCD48` with optional `aioserial` dependency
+- **Reconnect support**: `CD48WithReconnect` and `AsyncCD48WithReconnect`
 
-### Future Enhancements
+### 10. Security and Maintenance ✓
+- **Dependabot**: Weekly updates for pip and GitHub Actions dependencies
 
-#### 1. **Improved Error Handling**
-Enhance error handling with custom exceptions:
+## 📋 Future Enhancements
 
-```python
-class CD48Error(Exception):
-    """Base exception for CD48 errors."""
-    pass
-
-class CD48ConnectionError(CD48Error):
-    """Raised when device connection fails."""
-    pass
-
-class CD48CommandError(CD48Error):
-    """Raised when command execution fails."""
-    pass
-```
-
-#### 2. **Logging**
-Add structured logging instead of print statements:
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-def _send_command(self, command):
-    logger.debug(f"Sending command: {command}")
-    # ...
-```
-
-#### 3. **Configuration Files**
-Support configuration files for common setups:
-
-```python
-# cd48_config.yaml
-device:
-  port: /dev/ttyUSB0
-  baudrate: 115200
-
-channels:
-  0: {A: 1, B: 0, C: 0, D: 0}  # A singles
-  4: {A: 1, B: 1, C: 0, D: 0}  # A-B coinc
-
-trigger_level: 0.5
-```
-
-#### 4. **Performance Optimization**
-- Profile code to identify bottlenecks
-- Consider async I/O for multiple devices
-- Optimize data collection loops
-
-#### 5. **Documentation Site**
-Use Sphinx to generate documentation website:
+#### 1. **Documentation Site**
+Use Sphinx to generate a documentation website (`docs` extra in `pyproject.toml`):
 
 ```bash
-pip install sphinx sphinx-rtd-theme
-cd docs/
-sphinx-quickstart
-make html
+pip install pycd48[docs]
+# docs/ directory not yet created
+sphinx-quickstart docs/
 ```
 
-#### 6. **Package Distribution**
+#### 2. **Package Distribution**
 Publish to PyPI for easy installation:
 
 ```bash
@@ -160,13 +125,8 @@ python -m build
 twine upload dist/*
 ```
 
-Then users can install with:
-```bash
-pip install pycd48
-```
-
-#### 7. **Integration Tests**
-Add integration tests with actual hardware:
+#### 3. **Integration Tests**
+Add hardware integration tests with a pytest marker:
 
 ```python
 @pytest.mark.integration
@@ -177,22 +137,11 @@ def test_real_device_connection():
     assert cd48.get_version() is not None
 ```
 
-#### 8. **Benchmarking**
-Add performance benchmarks:
+#### 4. **Benchmarking**
+Add performance benchmarks for count acquisition loops.
 
-```python
-import pytest
-
-@pytest.mark.benchmark
-def test_count_acquisition_speed(benchmark):
-    result = benchmark(cd48.get_counts)
-    assert result is not None
-```
-
-#### 9. **Security**
-- Add security policy (SECURITY.md)
-- Use Dependabot for dependency updates
-- Regular security audits
+#### 5. **Security Policy**
+Add `SECURITY.md` for vulnerability reporting.
 
 ## 🎯 Development Workflow
 
@@ -201,13 +150,13 @@ def test_count_acquisition_speed(benchmark):
 1. **Fork and clone** the repository
 2. **Install dev dependencies**: `uv sync --extra dev` (or `pip install -e ".[dev]"`)
 3. **Install pre-commit hooks**: `pre-commit install`
-5. **Create feature branch**: `git checkout -b feature/new-feature`
-6. **Make changes** following style guide
-7. **Write tests** for new code
-8. **Run tests locally**: `pytest`
-9. **Format code**: `black pycd48/`
-10. **Commit changes** with clear messages
-11. **Push and create PR**
+4. **Create feature branch**: `git checkout -b feature/new-feature`
+5. **Make changes** following style guide
+6. **Write tests** for new code
+7. **Run tests locally**: `pytest`
+8. **Format and lint**: `black pycd48/ tests/` and `ruff check pycd48/ tests/`
+9. **Commit changes** with clear messages
+10. **Push and create PR**
 
 ### For Maintainers
 
@@ -224,15 +173,15 @@ def test_count_acquisition_speed(benchmark):
 ## 📊 Code Quality Metrics
 
 ### Current Status
-- ✅ Unit tests with mocking
+- ✅ Unit tests with mocking (92 tests)
 - ✅ CI/CD pipeline
 - ✅ Code formatting (Black)
 - ✅ Linting (Ruff)
-- ✅ Type checking (MyPy)
+- ✅ Type checking (MyPy on `pycd48/`)
 - ✅ Documentation
 - ✅ Type hints (comprehensive)
-- ⏳ Test coverage >80%
-- ⏳ Integration tests
+- ⏳ Test coverage >80% (currently ~77%)
+- ⏳ Integration tests with hardware
 
 ### Goals
 - 🎯 >90% test coverage
@@ -253,24 +202,21 @@ pytest --cov=pycd48 --cov-report=html
 
 # Run specific test
 pytest tests/test_cd48.py::TestCD48::test_set_channel
-
-# Run integration tests only
-pytest -m integration
 ```
 
 ### Code Quality
 ```bash
 # Format code (auto-fix)
-black pycd48/ tests/ examples/
+black pycd48/ tests/
 
-# Check formatting (no changes)
-black --check pycd48/
+# Check formatting (no changes, matches CI)
+black --check pycd48/ tests/
 
 # Lint code
 ruff check pycd48/ tests/
 
-# Type check
-mypy pycd48/
+# Type check (matches CI)
+mypy pycd48/ --ignore-missing-imports
 
 # Run all pre-commit hooks
 pre-commit run --all-files
@@ -300,7 +246,7 @@ uv lock --upgrade
 
 ## ✨ Summary
 
-This project now follows modern Python best practices:
+This project follows modern Python best practices:
 
 1. ✅ **Tested**: Comprehensive unit tests
 2. ✅ **Automated**: CI/CD pipeline

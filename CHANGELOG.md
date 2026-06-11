@@ -8,11 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `AsyncCD48` and `AsyncCD48WithReconnect` classes (optional `aioserial` dependency)
+- `CD48WithReconnect` with disconnect/reconnect callbacks
+- YAML experiment configuration with Pydantic models (`ExperimentRunner`, `run_experiment`)
+- Device configuration from YAML/JSON files (`CD48.from_config`)
+- Protocol types: `CountsDict`, `RateResult`, `CoincidenceResult`
+- Modules: `config.py`, `constants.py`, `protocols.py`, `utils.py`
+- Custom exception hierarchy (`CD48Error`, `CD48ConnectionError`, `CD48ResponseError`, etc.)
+- Structured logging across core modules
+- `run_yaml_experiment.py` example and YAML configs in `examples/configs/`
+- `pycd48_tutorial.ipynb` interactive notebook
+- Tests: `test_async_cd48.py`, `test_experiments.py`, `test_reconnect_config.py`
+- `py.typed` PEP 561 marker for type checker support
+- Dependabot configuration for pip and GitHub Actions
 - Unit tests for CD48 class with mocked serial communication
 - GitHub Actions CI/CD pipeline
-- Contributing guidelines (CONTRIBUTING.md)
-- This CHANGELOG file
+- Contributing guidelines (`CONTRIBUTING.md`)
 - Code quality tools integration (black, ruff, mypy)
+
+### Changed
+- Documentation aligned with Python 3.12+ requirement, CI matrix, and current example list
 
 ## [0.1.0] - 2026-01-15
 

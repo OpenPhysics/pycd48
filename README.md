@@ -364,6 +364,13 @@ Counter overflow detection and adaptive measurement:
 python examples/overflow_demo.py
 ```
 
+### Example 11: YAML Experiment Runner
+Run reproducible experiments from YAML configuration files:
+```bash
+pip install pycd48[yaml]
+python examples/run_yaml_experiment.py examples/configs/simple_coincidence.yaml
+```
+
 See the [examples README](examples/README.md) for detailed descriptions of each example.
 
 ## Web Interface
@@ -510,7 +517,7 @@ uv run pytest tests/
 
 **Type Checking:**
 ```bash
-uv run mypy pycd48/ tests/
+uv run mypy pycd48/ --ignore-missing-imports
 ```
 
 **Code Formatting:**

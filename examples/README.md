@@ -34,7 +34,7 @@ jupyter lab pycd48_tutorial.ipynb
 - Rapid prototyping of experiments
 - Creating custom analysis workflows
 
-**Prerequisites**: Install Jupyter with `uv sync --extra dev` or `pip install jupyter`
+**Prerequisites**: Install Jupyter separately (`pip install jupyter` or `uv pip install jupyter`)
 
 ---
 
@@ -391,6 +391,33 @@ python overflow_demo.py
 - Counters 0-6: 24-bit (max 16,777,215)
 - Counter 7: 16-bit (max 65,535) - use for rare events only!
 - At 1 MHz: Counter 7 overflows in 0.065 seconds!
+
+---
+
+### 11. run_yaml_experiment.py
+
+**Purpose**: Run reproducible experiments from YAML configuration files
+
+**Usage**:
+```bash
+pip install pycd48[yaml]
+python run_yaml_experiment.py configs/simple_coincidence.yaml
+```
+
+**What it does**:
+- Loads experiment parameters from YAML (channels, trigger levels, measurement duration)
+- Runs the experiment using `run_experiment()` from the library
+- Prints structured results (counts, rates, coincidence statistics)
+- Supports all configs in `configs/` (coincidence, rate measurement, voltage sweep, etc.)
+
+**Perfect for**:
+- Reproducible experiment workflows
+- Sharing experiment setups with collaborators
+- Batch runs across multiple configurations
+
+**Prerequisites**: `pip install pycd48[yaml]` (includes PyYAML and Pydantic)
+
+See [configs/README.md](configs/README.md) for YAML format details.
 
 ---
 

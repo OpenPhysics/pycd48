@@ -99,7 +99,7 @@ python_functions = ["test_*"]
 addopts = "-v --cov=pycd48 --cov-report=term-missing"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 # Strict type checking
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -130,7 +130,7 @@ warn_unused_ignores = false
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 exclude = [
     ".git",
     "__pycache__",
