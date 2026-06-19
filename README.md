@@ -96,8 +96,8 @@ with CD48() as cd48:
 For better reproducibility and easier collaboration, you can configure experiments using YAML files:
 
 ```bash
-# Install YAML support
-pip install pycd48[yaml]
+# Install YAML support (from source)
+uv sync --extra yaml  # or: pip install -e ".[yaml]"
 
 # Run an experiment from a YAML config
 python examples/run_yaml_experiment.py examples/configs/simple_coincidence.yaml
@@ -367,7 +367,7 @@ python examples/overflow_demo.py
 ### Example 11: YAML Experiment Runner
 Run reproducible experiments from YAML configuration files:
 ```bash
-pip install pycd48[yaml]
+uv sync --extra yaml  # or: pip install -e ".[yaml]"
 python examples/run_yaml_experiment.py examples/configs/simple_coincidence.yaml
 ```
 

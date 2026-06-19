@@ -31,15 +31,14 @@ pytest tests/ -v --cov=pycd48
 
 **Setup pre-commit:**
 ```bash
-pip install pre-commit
-pre-commit install
+uv run pre-commit install
 ```
 
 **Manual code quality checks (matches CI):**
 ```bash
-black pycd48/ tests/
-ruff check pycd48/ tests/
-mypy pycd48/ --ignore-missing-imports
+uv run black pycd48/ tests/
+uv run ruff check pycd48/ tests/
+uv run mypy pycd48/ --ignore-missing-imports
 ```
 
 ### 4. Documentation ✓
@@ -195,31 +194,31 @@ Add `SECURITY.md` for vulnerability reporting.
 ### Testing
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=pycd48 --cov-report=html
+uv run pytest --cov=pycd48 --cov-report=html
 
 # Run specific test
-pytest tests/test_cd48.py::TestCD48::test_set_channel
+uv run pytest tests/test_cd48.py::TestCD48::test_set_channel
 ```
 
 ### Code Quality
 ```bash
 # Format code (auto-fix)
-black pycd48/ tests/
+uv run black pycd48/ tests/
 
 # Check formatting (no changes, matches CI)
-black --check pycd48/ tests/
+uv run black --check pycd48/ tests/
 
 # Lint code
-ruff check pycd48/ tests/
+uv run ruff check pycd48/ tests/
 
 # Type check (matches CI)
-mypy pycd48/ --ignore-missing-imports
+uv run mypy pycd48/ --ignore-missing-imports
 
 # Run all pre-commit hooks
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
 ### Development
