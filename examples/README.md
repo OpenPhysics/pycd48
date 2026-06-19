@@ -400,7 +400,7 @@ python overflow_demo.py
 
 **Usage**:
 ```bash
-pip install pycd48[yaml]
+uv sync --extra yaml  # or: pip install -e ".[yaml]"
 python run_yaml_experiment.py configs/simple_coincidence.yaml
 ```
 
@@ -415,7 +415,7 @@ python run_yaml_experiment.py configs/simple_coincidence.yaml
 - Sharing experiment setups with collaborators
 - Batch runs across multiple configurations
 
-**Prerequisites**: `pip install pycd48[yaml]` (includes PyYAML and Pydantic)
+**Prerequisites**: `uv sync --extra yaml` or `pip install -e ".[yaml]"` (includes PyYAML and Pydantic)
 
 See [configs/README.md](configs/README.md) for YAML format details.
 

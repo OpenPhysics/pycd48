@@ -131,13 +131,13 @@ Before committing, format your code:
 
 ```bash
 # Format code
-black pycd48/ tests/
+uv run black pycd48/ tests/
 
 # Check linting
-ruff check pycd48/ tests/
+uv run ruff check pycd48/ tests/
 
 # Type checking
-mypy pycd48/
+uv run mypy pycd48/ --ignore-missing-imports
 ```
 
 ### Documentation
