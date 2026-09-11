@@ -28,7 +28,7 @@ This project adheres to a code of conduct that all contributors are expected to 
    ```
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/OpenPhysics/pycd48.git
+   git remote add upstream https://github.com/OpenLyceum/pycd48.git
    ```
 
 ## Development Setup

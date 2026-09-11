@@ -60,5 +60,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Voltage range: 0-4.08V
 - All 15 serial commands implemented
 
-[Unreleased]: https://github.com/OpenPhysics/pycd48/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OpenPhysics/pycd48/releases/tag/v0.1.0
+[Unreleased]: https://github.com/OpenLyceum/pycd48/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/OpenLyceum/pycd48/releases/tag/v0.1.0
