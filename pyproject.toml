@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "GPL-3.0-or-later"}
 authors = [
-    {name = "OpenLyceum Contributors"},
+    {name = "OpenPhysics Contributors"},
 ]
 keywords = ["physics", "coincidence", "counter", "cd48", "instrumentation"]
 classifiers = [
@@ -68,10 +68,10 @@ include = ["pycd48*"]
 pycd48 = ["py.typed"]
 
 [project.urls]
-Homepage = "https://github.com/OpenLyceum/pycd48"
-Documentation = "https://github.com/OpenLyceum/pycd48#readme"
-Repository = "https://github.com/OpenLyceum/pycd48"
-"Bug Tracker" = "https://github.com/OpenLyceum/pycd48/issues"
+Homepage = "https://github.com/OpenPhysics/pycd48"
+Documentation = "https://github.com/OpenPhysics/pycd48#readme"
+Repository = "https://github.com/OpenPhysics/pycd48"
+"Bug Tracker" = "https://github.com/OpenPhysics/pycd48/issues"
 
 [tool.black]
 line-length = 100

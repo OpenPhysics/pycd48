@@ -49,7 +49,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ### Install from source
 
 ```bash
-git clone https://github.com/OpenLyceum/pycd48.git
+git clone https://github.com/OpenPhysics/pycd48.git
 cd pycd48
 
 # Using uv (recommended - automatically creates virtual environment)
@@ -375,7 +375,7 @@ See the [examples README](examples/README.md) for detailed descriptions of each 
 
 ## Web Interface
 
-A browser-based interface using the Web Serial API is available in a separate repository: [jscd48](https://github.com/OpenLyceum/jscd48). It works in Chrome and Edge without installing Python.
+A browser-based interface using the Web Serial API is available in a separate repository: [jscd48](https://github.com/OpenPhysics/jscd48). It works in Chrome and Edge without installing Python.
 
 ## Common Channel Configurations
 
@@ -572,8 +572,8 @@ Excellent for teaching advanced physics concepts:
 
 - 🏢 [Red Dog Physics](https://www.reddogphysics.com/) - Manufacturer
 - 📦 [CD48 Product Page](https://www.reddogphysics.com/cd48.html) - Official hardware documentation
-- 💻 [GitHub Repository](https://github.com/OpenLyceum/pycd48) - Source code and issues
-- 📖 [API Documentation](https://github.com/OpenLyceum/pycd48#cd48-class-reference) - Complete API reference
+- 💻 [GitHub Repository](https://github.com/OpenPhysics/pycd48) - Source code and issues
+- 📖 [API Documentation](https://github.com/OpenPhysics/pycd48#cd48-class-reference) - Complete API reference
 
 ## Citation
 
@@ -582,9 +582,9 @@ If you use this library in your research, please cite:
 ```bibtex
 @software{pycd48,
   title = {pycd48: Python Interface for CD48 Coincidence Counter},
-  author = {OpenLyceum Contributors},
+  author = {OpenPhysics Contributors},
   year = {2026},
-  url = {https://github.com/OpenLyceum/pycd48},
+  url = {https://github.com/OpenPhysics/pycd48},
   note = {Python library for Red Dog Physics CD48}
 }
 ```
