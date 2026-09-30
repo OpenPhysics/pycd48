@@ -390,7 +390,7 @@ See the [examples README](examples/README.md) for detailed descriptions of each 
 
 ## Web Interface
 
-A browser-based interface using the Web Serial API is available in a separate repository: [tscd48](https://github.com/OpenPhysics/tscd48) (TypeScript; it supersedes the archived JavaScript `jscd48`). It works in Chrome and Edge without installing Python.
+A browser-based interface using the Web Serial API is available in a separate repository: [tscd48](https://github.com/OpenPhysics/tscd48-tmp) (TypeScript; it supersedes the archived JavaScript `jscd48`). It works in Chrome and Edge without installing Python.
 
 ## Common Channel Configurations
 
