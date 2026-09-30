@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 This file contains development information for AI assistants working on this codebase.
 
