@@ -47,10 +47,10 @@ pycd48/
 
 ## GitHub Actions
 
-The CI workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`, `develop`, and `claude/*` branches:
+The CI workflow (`.github/workflows/ci.yml`) runs on push to `main`, `develop`, and `claude/*`, and on pull requests to `main` and `develop`:
 
 1. **lint**: Black formatting, Ruff linting, Mypy type checking
-2. **test**: Pytest on Ubuntu/Windows × Python 3.12-3.13
+2. **test**: Pytest on Ubuntu (Python 3.12 and 3.13) and Windows (Python 3.13)
 3. **examples**: Syntax check of example scripts
 
 ## Code Style
@@ -67,7 +67,7 @@ Tests use `pytest` with `pytest-mock` for mocking serial communication. No hardw
 
 ```bash
 # Run specific test
-uv run pytest tests/test_cd48.py::TestCD48Connection -v
+uv run pytest tests/test_cd48.py::TestCD48 -v
 
 # Run with print output visible
 uv run pytest -s
