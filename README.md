@@ -514,11 +514,7 @@ The repository includes a `winpy` helper script that wraps Windows Python for co
 
 GNU General Public License v3.0 - see LICENSE file for details
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
-### Development
+## Development
 
 Install development dependencies:
 ```bash

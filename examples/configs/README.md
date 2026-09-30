@@ -5,7 +5,6 @@ This directory contains example YAML configuration files for common CD48 experim
 - **Better reproducibility**: Share exact experiment parameters
 - **Easier collaboration**: Non-programmers can modify experiment settings
 - **Version control**: Track changes to experimental setups
-- **Documentation**: Self-documenting experiment parameters
 
 ## Quick Start
 
@@ -166,40 +165,6 @@ experiment:
 - Detector characterization
 - Finding optimal operating points
 
-## Example Configurations
-
-### `cosmic_ray_telescope.yaml`
-Full cosmic ray muon telescope with:
-- 4 detector inputs (A, B, C, D)
-- 2-fold coincidence (A-B for vertical muons)
-- 3-fold coincidence (A-B-C for higher selectivity)
-- 5-minute continuous collection
-
-### `simple_coincidence.yaml`
-Basic two-detector setup:
-- Detectors A and B
-- 60-second measurements
-- 5 repeats for statistics
-- Accidental coincidence correction
-
-### `continuous_monitoring.yaml`
-Long-term monitoring:
-- 1-hour collection
-- 10-second intervals
-- Three channels (A, B, A-B)
-
-### `voltage_sweep.yaml`
-DAC voltage optimization:
-- 0-4V sweep in 20 steps
-- 5 seconds per voltage
-- Monitor singles and coincidences
-
-### `rate_measurement.yaml`
-Quick single-channel test:
-- Channel 0 only
-- 10-second measurements
-- 10 repeats
-
 ## Output Files
 
 When `output` is configured, results are saved automatically:
@@ -238,60 +203,8 @@ Complete experiment record including:
 - All measurement data
 - Metadata (timestamp, type, etc.)
 
-## Tips
-
-1. **Start simple**: Begin with `simple_coincidence.yaml` or `rate_measurement.yaml`
-
-2. **Test connections**: Use short durations first to verify setup
-
-3. **Port auto-detection**: Omit `connection.port` to auto-detect the CD48
-
-4. **Version control**: Store configs in git for reproducibility
-
-5. **Comments**: Add comments to document your specific setup
-
-6. **Share configs**: Share YAML files with collaborators instead of Python scripts
-
-7. **Batch experiments**: Run multiple configs in sequence:
-   ```bash
-   for config in configs/*.yaml; do
-       python run_yaml_experiment.py "$config"
-   done
-   ```
-
-## Customization
-
-Copy and modify these examples for your specific experiment:
-
-```bash
-cp simple_coincidence.yaml my_experiment.yaml
-# Edit my_experiment.yaml with your parameters
-python ../run_yaml_experiment.py my_experiment.yaml
-```
-
-## Troubleshooting
-
-**PyYAML not installed:**
-```bash
-pip install pyyaml
-# or
-pip install pycd48[yaml]
-```
-
-**Device not found:**
-- Uncomment and set `connection.port` in the config
-- Check USB connection
-- Try `ls /dev/tty*` (Linux/Mac) or Device Manager (Windows)
-
-**Timeout errors:**
-- Increase `connection.timeout` in config
-- Check that device is responding
-
-**Invalid experiment type:**
-- Must be one of: `rate`, `coincidence`, `continuous`, `voltage_sweep`
-
 ## Further Reading
 
 - See `../run_yaml_experiment.py` for programmatic usage
-- Main documentation: `/home/user/pycd48/README.md`
+- Main documentation: `../../README.md`
 - API reference: Use `help(pycd48.run_experiment)` in Python

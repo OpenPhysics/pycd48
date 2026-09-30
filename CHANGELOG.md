@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependabot configuration for pip and GitHub Actions
 - Unit tests for CD48 class with mocked serial communication
 - GitHub Actions CI/CD pipeline
-- Contributing guidelines (`CONTRIBUTING.md`)
 - Code quality tools integration (black, ruff, mypy)
 
 ### Changed
