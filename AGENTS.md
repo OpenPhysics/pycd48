@@ -41,7 +41,7 @@ pycd48/
 │   ├── utils.py         # Device discovery utilities
 │   └── py.typed         # PEP 561 marker for type hints
 ├── tests/               # Unit tests (mocked serial)
-├── examples/            # Example scripts (require hardware)
+├── examples/            # Example scripts (require hardware), YAML configs, tutorial notebook
 └── .github/workflows/   # CI configuration
 ```
 
@@ -78,7 +78,8 @@ uv run pytest -s
 Managed via `pyproject.toml` with uv. Lock file: `uv.lock`.
 
 - **Runtime**: pyserial, numpy, matplotlib
-- **Dev**: pytest, pytest-cov, pytest-mock, black, ruff, mypy, pre-commit, ipython
+- **Optional extras**: `async` (aioserial), `yaml` (pyyaml, pydantic), `all`, `docs` (sphinx)
+- **Dev**: pytest, pytest-cov, pytest-mock, pytest-asyncio, black, ruff, mypy, pre-commit, ipython (plus the async and yaml dependencies)
 
 ## License
 

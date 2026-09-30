@@ -187,12 +187,16 @@ Then log out and log back in for the change to take effect.
 ### Connection
 
 ```python
-CD48(port=None, baudrate=115200, timeout=1)
+CD48(port=None, baudrate=115200, timeout=1.0, init_delay=None, strict_mode=False)
 ```
 
 - `port`: Serial port name (auto-detects if None)
 - `baudrate`: Communication speed (default: 115200)
 - `timeout`: Read timeout in seconds
+- `init_delay`: Device initialization delay in seconds (set to 0 to skip when reconnecting)
+- `strict_mode`: Validate device responses more thoroughly and raise `CD48ResponseError` on unexpected ones
+
+`CD48.from_config(path)` builds a connected instance from a YAML/JSON device configuration.
 
 ### Methods
 
@@ -219,7 +223,13 @@ CD48(port=None, baudrate=115200, timeout=1)
   - Returns formatted string if `human_readable=True`
   - Returns dict with `counts` list and `overflow` flag if `False`
 
+- **`read_and_clear_counts(human_readable=True)`**: Read counts and reset the counters in one step
+
 - **`clear_counts()`**: Clear all counters (reads and resets)
+
+- **`measure_rate(channel=0, duration=1.0)`**: Count on one channel for `duration` seconds and return a `RateResult`
+
+- **`measure_coincidence_rate(duration=1.0, singles_a_channel=0, singles_b_channel=1, coincidence_channel=4, coincidence_window=...)`**: Measure a coincidence rate with accidental correction and return a `CoincidenceResult`
 
 - **`get_overflow()`**: Check counter overflow status
   - Returns 8-bit flag (bit n = counter n overflowed)
@@ -244,6 +254,11 @@ CD48(port=None, baudrate=115200, timeout=1)
 #### Connection Management
 
 - **`close()`**: Close serial connection
+
+#### Reconnection and async
+
+- **`CD48WithReconnect`**: `CD48` with disconnect/reconnect callbacks and `try_reconnect()`
+- **`AsyncCD48`** / **`AsyncCD48WithReconnect`**: `async`/`await` versions; install the optional dependency with `uv sync --extra async` (or `pip install -e ".[async]"`)
 
 The CD48 class supports context managers:
 
@@ -375,7 +390,7 @@ See the [examples README](examples/README.md) for detailed descriptions of each 
 
 ## Web Interface
 
-A browser-based interface using the Web Serial API is available in a separate repository: [jscd48](https://github.com/OpenPhysics/jscd48). It works in Chrome and Edge without installing Python.
+A browser-based interface using the Web Serial API is available in a separate repository: [tscd48](https://github.com/OpenPhysics/tscd48) (TypeScript; it supersedes the archived JavaScript `jscd48`). It works in Chrome and Edge without installing Python.
 
 ## Common Channel Configurations
 
