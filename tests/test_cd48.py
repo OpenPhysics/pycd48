@@ -13,6 +13,8 @@ import serial
 
 from pycd48 import CD48, CD48DeviceNotFoundError, CD48Error, CD48ParseError
 
+from tests.mock_serial import arm_line_reader
+
 
 class TestCD48(unittest.TestCase):
     """Test cases for CD48 class."""
@@ -22,6 +24,7 @@ class TestCD48(unittest.TestCase):
         # Mock serial.Serial to avoid needing actual hardware
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_init_with_port(self, mock_serial_class: MagicMock) -> None:
@@ -40,6 +43,8 @@ class TestCD48(unittest.TestCase):
         # Mock port detection
         mock_port: Mock = Mock()
         mock_port.device = "/dev/ttyUSB0"
+        mock_port.vid = 0x04B4
+        mock_port.pid = 0x8613
         mock_port.description = "USB Serial Device"
         mock_comports.return_value = [mock_port]
 
@@ -69,14 +74,11 @@ class TestCD48(unittest.TestCase):
 
         cd48 = CD48(port="/dev/ttyUSB0")
 
-        # Test voltage to byte conversion
-        # 2.04V should map to 127 (approximately half of 255 for 4.08V range)
+        # 2.04V is exactly half of 4.08V, so the DAC byte is round(127.5) == 128.
         cd48.set_trigger_level(2.04)
 
         call_args = self.mock_serial.write.call_args[0][0]
-        # Should be 'L127\r'
-        self.assertTrue(call_args.startswith(b"L"))
-        self.assertTrue(call_args.endswith(b"\r"))
+        self.assertEqual(call_args, b"L128\r")
 
     @patch("serial.Serial")
     def test_get_counts_parsed(self, mock_serial_class: MagicMock) -> None:
@@ -171,11 +173,30 @@ class TestCD48EdgeCases(unittest.TestCase):
 
         self.assertIn("Could not find CD48", str(context.exception))
 
+    @patch("serial.tools.list_ports.comports")
+    @patch("serial.Serial")
+    def test_generic_serial_is_not_cd48(
+        self, mock_serial_class: MagicMock, mock_comports: MagicMock
+    ) -> None:
+        """A USB serial adapter that is not the Cypress CD48 must not be opened."""
+        mock_port: Mock = Mock()
+        mock_port.device = "/dev/ttyUSB0"
+        mock_port.vid = 0x04B4
+        mock_port.pid = 0x0001
+        mock_port.description = "USB Serial Device"
+        mock_comports.return_value = [mock_port]
+
+        with self.assertRaises(CD48DeviceNotFoundError):
+            CD48()
+
+        mock_serial_class.assert_not_called()
+
     @patch("serial.Serial")
     def test_channel_range_valid(self, mock_serial_class: MagicMock) -> None:
         """Test that valid channel numbers (0-7) work."""
         mock_serial: Mock = Mock()
         mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(mock_serial)
         mock_serial_class.return_value = mock_serial
 
         cd48 = CD48(port="/dev/ttyUSB0")
@@ -189,6 +210,7 @@ class TestCD48EdgeCases(unittest.TestCase):
         """Test that invalid channel numbers raise ValueError."""
         mock_serial: Mock = Mock()
         mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(mock_serial)
         mock_serial_class.return_value = mock_serial
 
         cd48 = CD48(port="/dev/ttyUSB0")
@@ -207,6 +229,7 @@ class TestCD48EdgeCases(unittest.TestCase):
         """Test that invalid A, B, C, D values raise ValueError."""
         mock_serial: Mock = Mock()
         mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(mock_serial)
         mock_serial_class.return_value = mock_serial
 
         cd48 = CD48(port="/dev/ttyUSB0")
@@ -229,6 +252,7 @@ class TestCD48AdditionalMethods(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_get_version(self, mock_serial_class: MagicMock) -> None:
@@ -310,11 +334,10 @@ class TestCD48AdditionalMethods(unittest.TestCase):
 
         cd48 = CD48(port="/dev/ttyUSB0")
 
-        # Test voltage to byte conversion (2.04V -> 127)
+        # 2.04V -> round(127.5) == 128, matching Math.round.
         cd48.set_dac_voltage(2.04)
         call_args = self.mock_serial.write.call_args[0][0]
-        self.assertTrue(call_args.startswith(b"V"))
-        self.assertTrue(call_args.endswith(b"\r"))
+        self.assertEqual(call_args, b"V128\r")
 
         # Test clamping high voltage
         cd48.set_dac_voltage(10.0)
@@ -385,6 +408,7 @@ class TestCD48FullCoverage(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_clear_counts(self, mock_serial_class: MagicMock) -> None:
@@ -502,11 +526,12 @@ class TestCD48FullCoverage(unittest.TestCase):
     def test_init_auto_detect_cypress_vid(
         self, mock_serial_class: MagicMock, mock_comports: MagicMock
     ) -> None:
-        """Test initialization with auto-detection via Cypress VID."""
+        """Test initialization with auto-detection via Cypress VID and PID."""
         mock_port: Mock = Mock()
         mock_port.device = "/dev/ttyACM0"
         mock_port.description = "Some Device"
         mock_port.vid = 0x04B4  # Cypress VID
+        mock_port.pid = 0x8613
         mock_comports.return_value = [mock_port]
 
         mock_serial_class.return_value = self.mock_serial

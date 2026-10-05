@@ -13,6 +13,7 @@ from .cd48 import (
     CD48,
     CD48ConnectionError,
     CD48Error,
+    CD48OverflowError,
     CD48ParseError,
     CD48ResponseError,
     CD48WithReconnect,
@@ -44,6 +45,7 @@ __all__ = [
     "CD48WithReconnect",
     # Exceptions
     "CD48Error",
+    "CD48OverflowError",
     "CD48ParseError",
     "CD48DeviceNotFoundError",
     "CD48ConnectionError",

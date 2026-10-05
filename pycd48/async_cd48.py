@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from collections.abc import Callable
 from types import TracebackType
 from typing import TYPE_CHECKING, Literal, overload
@@ -31,9 +32,12 @@ from .constants import (
 from .protocols import CoincidenceResult, CountsDict, RateResult
 from .utils import (
     CD48DeviceNotFoundError,
+    command_clears_counters,
+    ensure_no_channel_overflow,
     find_cd48_port,
     validate_binary_input,
     validate_channel,
+    validate_duration,
     voltage_to_dac_byte,
 )
 
@@ -101,6 +105,7 @@ class AsyncCD48:
         self._init_delay = init_delay if init_delay is not None else INIT_DELAY
         self._ser: aioserial.AioSerial | None = None
         self._connected = False
+        self._io_lock = asyncio.Lock()
 
     async def connect(self) -> None:
         """
@@ -122,8 +127,18 @@ class AsyncCD48:
                 "aioserial is required for async support. Install with: pip install aioserial"
             ) from e
 
+        if self._ser is not None:
+            with contextlib.suppress(Exception):
+                self._ser.close()
+            self._ser = None
+            self._connected = False
+
         port = self._port if self._port is not None else find_cd48_port(logger=self._logger)
+        self._port = port
         self._ser = aio.AioSerial(port=port, baudrate=self._baudrate, timeout=self._timeout)
+        opened_port = self._ser.port
+        if isinstance(opened_port, str) and opened_port:
+            self._port = opened_port
 
         if self._init_delay > 0:
             await asyncio.sleep(self._init_delay)
@@ -144,16 +159,49 @@ class AsyncCD48:
             return str(self._ser.port)
         return self._port
 
-    async def _send_command(self, command: str) -> str:
-        """Send command and return response asynchronously."""
-        if self._ser is None or not self._connected:
+    async def _read_framed_line(self) -> str:
+        """Read one line ending in ``\\r`` or ``\\n``, or stop at the deadline."""
+        if self._ser is None:
             raise CD48Error("Not connected to CD48. Call connect() first.")
 
-        await self._ser.write_async((command + "\r").encode())
-        await asyncio.sleep(self.COMMAND_DELAY)
-        response_bytes: bytes = await self._ser.read_async(self._ser.in_waiting or 1024)
-        response: str = response_bytes.decode().strip()
-        return response
+        timeout = self._timeout if self._timeout and self._timeout > 0 else 0.0
+        deadline = time.monotonic() + timeout
+        buf = bytearray()
+        while time.monotonic() < deadline or timeout == 0.0:
+            remaining = deadline - time.monotonic()
+            if timeout and remaining <= 0:
+                break
+            try:
+                chunk = await asyncio.wait_for(
+                    self._ser.read_async(1),
+                    timeout=remaining if timeout else 0,
+                )
+            except TimeoutError:
+                break
+            if not isinstance(chunk, (bytes, bytearray)) or len(chunk) == 0:
+                break
+            buf.extend(chunk)
+            if b"\r" in buf or b"\n" in buf:
+                break
+            if timeout == 0.0:
+                break
+        text = bytes(buf).decode(errors="replace")
+        for separator in ("\r", "\n"):
+            index = text.find(separator)
+            if index != -1:
+                return text[:index].strip()
+        return text.strip()
+
+    async def _send_command(self, command: str) -> str:
+        """Send command and return one framed response line."""
+        async with self._io_lock:
+            if self._ser is None or not self._connected:
+                raise CD48Error("Not connected to CD48. Call connect() first.")
+
+            self._ser.reset_input_buffer()
+            await self._ser.write_async((command + "\r").encode())
+            await asyncio.sleep(self.COMMAND_DELAY)
+            return await self._read_framed_line()
 
     @overload
     async def get_counts(self, human_readable: Literal[True] = True) -> str: ...
@@ -305,10 +353,12 @@ class AsyncCD48:
         RateResult : dict with counts, duration, rate, and channel
         """
         validate_channel(channel)
+        validate_duration(duration)
 
         await self.clear_counts()
         await asyncio.sleep(duration)
         data = await self.get_counts(human_readable=False)
+        ensure_no_channel_overflow(data["overflow"], channel)
         counts = data["counts"][channel]
 
         return {
@@ -346,9 +396,20 @@ class AsyncCD48:
         --------
         CoincidenceResult : dict with singles, coincidences, rates, and corrections
         """
+        validate_duration(duration)
+        validate_channel(singles_a_channel)
+        validate_channel(singles_b_channel)
+        validate_channel(coincidence_channel)
+
         await self.clear_counts()
         await asyncio.sleep(duration)
         data = await self.get_counts(human_readable=False)
+        ensure_no_channel_overflow(
+            data["overflow"],
+            singles_a_channel,
+            singles_b_channel,
+            coincidence_channel,
+        )
 
         singles_a = data["counts"][singles_a_channel]
         singles_b = data["counts"][singles_b_channel]
@@ -501,16 +562,22 @@ class AsyncCD48WithReconnect(AsyncCD48):
         """Send command with automatic reconnection on failure."""
         try:
             return await super()._send_command(command)
-        except (OSError, CD48Error) as e:
+        except OSError as e:
+            # Parse errors and "Not connected" are CD48Error, not transport
+            # failures, and must not be treated as a disconnect.
             if not self._auto_reconnect:
                 raise
 
             await self._handle_disconnect()
             if await self.reconnect():
-                # Retry command after reconnection
+                if command_clears_counters(command):
+                    raise CD48Error(
+                        "Count read failed and was not retried after reconnect "
+                        "because it clears counters"
+                    ) from e
                 try:
                     return await super()._send_command(command)
-                except (OSError, CD48Error) as retry_error:
+                except OSError as retry_error:
                     raise CD48Error(
                         f"Command failed after reconnection: {retry_error}"
                     ) from retry_error

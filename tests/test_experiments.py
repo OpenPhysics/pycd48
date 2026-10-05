@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from pycd48 import CD48ConfigError
 from pycd48.experiments import ExperimentRunner, run_experiment
+from tests.mock_serial import arm_line_reader
 
 
 class TestExperimentConfig(unittest.TestCase):
@@ -121,6 +122,7 @@ class TestExperimentRunner(unittest.TestCase):
         # Mock serial for all tests
         self.mock_serial = Mock()
         self.mock_serial.read_all = Mock(return_value=b"100 200 300 400 50 25 10 5 0\r\n")
+        arm_line_reader(self.mock_serial)
 
     def tearDown(self) -> None:
         """Clean up test fixtures."""
@@ -272,6 +274,7 @@ class TestExperimentOutput(unittest.TestCase):
         self.temp_path = Path(self.temp_dir.name)
         self.mock_serial = Mock()
         self.mock_serial.read_all = Mock(return_value=b"100 200 300 400 50 25 10 5 0\r\n")
+        arm_line_reader(self.mock_serial)
 
     def tearDown(self) -> None:
         """Clean up test fixtures."""
@@ -376,6 +379,7 @@ class TestRunExperimentFunction(unittest.TestCase):
         self.temp_path = Path(self.temp_dir.name)
         self.mock_serial = Mock()
         self.mock_serial.read_all = Mock(return_value=b"100 200 300 400 50 25 10 5 0\r\n")
+        arm_line_reader(self.mock_serial)
 
     def tearDown(self) -> None:
         """Clean up test fixtures."""

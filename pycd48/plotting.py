@@ -93,6 +93,9 @@ class RatePlotter:
         self._times: list[float] = []
         self._rates: dict[int, list[float]] = {ch: [] for ch in self.channels}
         self._start_time: float = 0
+        self._last_sample_time: float | None = None
+        # The read immediately after clear_counts includes setup time.
+        self._skip_setup_sample: bool = False
 
         self._fig: Figure | None = None
         self._ax: Axes | None = None
@@ -131,12 +134,27 @@ class RatePlotter:
         assert self._ax is not None, "Plot not initialized"
         # Read counts
         data = self.cd48.get_counts(human_readable=False)
-        now = time.time() - self._start_time
+        now_abs = time.time()
+        now = now_abs - self._start_time
 
-        # Calculate rates
+        # The sample taken immediately after clear_counts includes setup time.
+        if self._skip_setup_sample:
+            self._skip_setup_sample = False
+            self._last_sample_time = now_abs
+            return list(self._lines.values())
+
+        if self._last_sample_time is None:
+            dt = self.interval
+        else:
+            dt = now_abs - self._last_sample_time
+            if dt <= 0:
+                dt = self.interval
+        self._last_sample_time = now_abs
+
+        # Calculate rates from the measured interval between reads.
         self._times.append(now)
         for ch in self.channels:
-            rate = data["counts"][ch] / self.interval
+            rate = data["counts"][ch] / dt
             self._rates[ch].append(rate)
 
         # Trim to max_points
@@ -172,7 +190,9 @@ class RatePlotter:
         """
         self._init_plot()
         self._start_time = time.time()
+        self._last_sample_time = None
         self.cd48.clear_counts()
+        self._skip_setup_sample = True
 
         frames = None
         if duration is not None:
@@ -207,7 +227,9 @@ class RatePlotter:
         """
         self._init_plot()
         self._start_time = time.time()
+        self._last_sample_time = None
         self.cd48.clear_counts()
+        self._skip_setup_sample = True
 
         frames = int(duration / self.interval)
         assert self._fig is not None, "Plot not initialized"

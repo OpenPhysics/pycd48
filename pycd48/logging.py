@@ -90,6 +90,7 @@ class DataLogger:
             if self.include_timestamp:
                 headers.extend(["timestamp", "elapsed_seconds"])
             headers.extend([f"channel_{i}" for i in self.channels])
+            headers.append("overflow")
             self._writer = csv.writer(self._file)
             self._writer.writerow(headers)
         # JSON is accumulated in memory and written on close
@@ -121,6 +122,7 @@ class DataLogger:
                 row.append(datetime.now().isoformat())
                 row.append(f"{elapsed:.{TIME_PRECISION_DECIMALS}f}")
             row.extend([counts[i] for i in self.channels])
+            row.append("" if overflow is None else overflow)
             if self._writer:
                 self._writer.writerow(row)
             if self._file:

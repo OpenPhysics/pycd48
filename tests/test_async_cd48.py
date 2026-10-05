@@ -153,6 +153,7 @@ class TestAsyncCD48:
         mock_port = Mock()
         mock_port.device = "/dev/ttyACM0"
         mock_port.vid = 0x04B4  # Cypress VID
+        mock_port.pid = 0x8613
         mock_port.description = "CD48"
 
         with (
@@ -222,10 +223,11 @@ class TestAsyncCD48WithReconnect:
                 )
                 await cd48.connect()
 
-                # This should trigger reconnection
-                await cd48._send_command("C")
+                # Non-destructive commands are retried after the port comes back.
+                await cd48._send_command("v")
 
                 assert reconnect_called
+                assert mock_aioserial.write_async.call_count == 2
 
     @pytest.mark.asyncio
     async def test_disconnect_callback(

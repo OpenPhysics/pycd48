@@ -11,7 +11,13 @@ import logging
 
 import serial.tools.list_ports
 
-from .constants import CYPRESS_VENDOR_ID, DAC_MAX_BYTE, DAC_MAX_VOLTAGE, NUM_CHANNELS
+from .constants import (
+    CYPRESS_PRODUCT_ID,
+    CYPRESS_VENDOR_ID,
+    DAC_MAX_BYTE,
+    DAC_MAX_VOLTAGE,
+    NUM_CHANNELS,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -33,21 +39,29 @@ class CD48DeviceNotFoundError(CD48Error):
     pass
 
 
+class CD48OverflowError(CD48Error):
+    """Raised when a measured channel's overflow bit is set."""
+
+    pass
+
+
 def find_cd48_port(
     vendor_id: int = CYPRESS_VENDOR_ID,
+    product_id: int = CYPRESS_PRODUCT_ID,
     logger: logging.Logger | None = None,
 ) -> str:
     """
     Attempt to auto-detect CD48 on serial ports.
 
-    Uses a two-pass detection strategy:
-    1. First pass: Look for Cypress VID (more reliable)
-    2. Second pass: Fall back to description matching
+    A port matches only when both the Cypress vendor id and product id match.
+    Generic USB or serial adapters are not opened.
 
     Parameters:
     -----------
     vendor_id : int
         USB Vendor ID to look for (default: Cypress VENDOR_ID)
+    product_id : int
+        USB Product ID to look for (default: Cypress PRODUCT_ID)
     logger : logging.Logger, optional
         Logger instance for debug output
 
@@ -63,16 +77,9 @@ def find_cd48_port(
     log = logger or _logger
     ports = serial.tools.list_ports.comports()
 
-    # First pass: look for Cypress VID (more reliable)
     for port in ports:
-        if port.vid == vendor_id:
+        if port.vid == vendor_id and port.pid == product_id:
             log.info(f"Found CD48 (Cypress): {port.device} - {port.description}")
-            return str(port.device)
-
-    # Second pass: fall back to description matching
-    for port in ports:
-        if "USB" in port.description or "Serial" in port.description:
-            log.info(f"Found potential device: {port.device} - {port.description}")
             return str(port.device)
 
     raise CD48DeviceNotFoundError("Could not find CD48. Please specify port manually.")
@@ -129,8 +136,36 @@ def voltage_to_dac_byte(voltage: float) -> int:
     --------
     int : DAC byte value (0 to 255), clamped to valid range
     """
-    byte_val = int((voltage / DAC_MAX_VOLTAGE) * DAC_MAX_BYTE)
+    # Match Math.round for this positive range (half away from zero / half up).
+    byte_val = int(round((voltage / DAC_MAX_VOLTAGE) * DAC_MAX_BYTE))
     return max(0, min(DAC_MAX_BYTE, byte_val))
+
+
+def validate_duration(duration: float) -> None:
+    """Raise ValueError when a measurement duration is not positive."""
+    if duration <= 0:
+        raise ValueError(f"duration must be greater than 0, got {duration}")
+
+
+def command_clears_counters(command: str) -> bool:
+    """Return True when the command reads and clears hardware counters."""
+    return command[:1] in {"c", "C"}
+
+
+def ensure_no_channel_overflow(overflow: int, *channels: int) -> None:
+    """
+    Raise when any listed channel's overflow bit is set.
+
+    A set bit means the counter wrapped, so a rate computed from the raw
+    count would be silently low.
+    """
+    overflowed = [channel for channel in channels if overflow & (1 << channel)]
+    if overflowed:
+        listed = ", ".join(str(channel) for channel in overflowed)
+        raise CD48OverflowError(
+            f"Counter overflow on channel(s) {listed}; "
+            f"rate would be understated (overflow={overflow})"
+        )
 
 
 def dac_byte_to_voltage(byte_val: int) -> float:

@@ -40,10 +40,14 @@ from .constants import (
 from .protocols import CoincidenceResult, CountsDict, RateResult
 from .utils import CD48DeviceNotFoundError as CD48DeviceNotFoundError
 from .utils import CD48Error as CD48Error
+from .utils import CD48OverflowError as CD48OverflowError
 from .utils import (
+    command_clears_counters,
+    ensure_no_channel_overflow,
     find_cd48_port,
     validate_binary_input,
     validate_channel,
+    validate_duration,
     voltage_to_dac_byte,
 )
 
@@ -130,6 +134,9 @@ class CD48:
         self._timeout = timeout
 
         self.ser: serial.Serial = serial.Serial(port, baudrate=baudrate, timeout=timeout)
+        opened_port = self.ser.port
+        if isinstance(opened_port, str) and opened_port:
+            self._port = opened_port
         if self._init_delay > 0:
             time.sleep(self._init_delay)
         self.ser.reset_input_buffer()
@@ -203,11 +210,25 @@ class CD48:
             strict_mode=strict_mode,
         )
 
-        # Apply device settings if requested using unified function
+        # Apply device settings if requested using unified function.
+        # Close the port if settings application fails so the handle is not leaked.
         if apply_settings_flag:
-            settings_raw = config.get("settings", {})
-            settings = settings_raw if isinstance(settings_raw, dict) else {}
-            apply_settings(instance, settings, logger=instance._logger)
+            settings_failed = False
+            try:
+                settings_raw = config.get("settings", {})
+                settings = settings_raw if isinstance(settings_raw, dict) else {}
+                apply_settings(instance, settings, logger=instance._logger)
+            except Exception:
+                settings_failed = True
+                raise
+            finally:
+                if settings_failed:
+                    try:
+                        instance.close()
+                    except Exception:
+                        instance._logger.debug(
+                            "Failed to close port after settings error", exc_info=True
+                        )
 
         return instance
 
@@ -258,26 +279,55 @@ class CD48:
         except Exception:
             pass  # Ignore errors when closing broken connection
 
-        # Determine port
-        port = self._port if self._port is not None else find_cd48_port(logger=self._logger)
+        # Reuse the port this instance already opened. Auto-detect only when
+        # no port has been chosen yet, then persist that choice.
+        port = self._port
+        if port is None:
+            port = find_cd48_port(logger=self._logger)
+            self._port = port
 
         # Reconnect with minimal delay (device already initialized)
         delay = init_delay if init_delay is not None else 0
 
         try:
             self.ser = serial.Serial(port, baudrate=self._baudrate, timeout=self._timeout)
+            opened_port = self.ser.port
+            if isinstance(opened_port, str) and opened_port:
+                self._port = opened_port
             if delay > 0:
                 time.sleep(delay)
             self.ser.reset_input_buffer()
-            self._logger.info(f"Reconnected to CD48 on {port}")
+            self._logger.info(f"Reconnected to CD48 on {self._port}")
         except serial.SerialException as e:
             raise CD48ConnectionError(f"Failed to reconnect to CD48: {e}") from e
 
+    def _read_framed_line(self) -> str:
+        """Read until ``\\r`` or ``\\n``, or until the configured timeout."""
+        timeout = self._timeout if self._timeout and self._timeout > 0 else 0.0
+        deadline = time.monotonic() + timeout
+        buf = bytearray()
+        while True:
+            if timeout and time.monotonic() >= deadline:
+                break
+            chunk = self.ser.read(1)
+            if not isinstance(chunk, (bytes, bytearray)) or len(chunk) == 0:
+                break
+            buf.extend(chunk)
+            if b"\r" in buf or b"\n" in buf:
+                break
+        text = bytes(buf).decode(errors="replace")
+        for separator in ("\r", "\n"):
+            index = text.find(separator)
+            if index != -1:
+                return text[:index].strip()
+        return text.strip()
+
     def _send_command(self, command: str) -> str:
-        """Send command and return response."""
+        """Send command and return one framed response line."""
+        self.ser.reset_input_buffer()
         self.ser.write((command + "\r").encode())
         time.sleep(self.COMMAND_DELAY)
-        response: str = self.ser.read_all().decode().strip()
+        response = self._read_framed_line()
 
         if self._strict_mode:
             self._validate_response(command, response)
@@ -550,10 +600,12 @@ class CD48:
         >>> print(f"Rate: {result['rate']:.2f} Hz")
         """
         validate_channel(channel)
+        validate_duration(duration)
 
         self.clear_counts()
         time.sleep(duration)
         data = self.get_counts(human_readable=False)
+        ensure_no_channel_overflow(data["overflow"], channel)
         counts = data["counts"][channel]
 
         return {
@@ -599,9 +651,20 @@ class CD48:
         >>> result = cd48.measure_coincidence_rate(duration=60)
         >>> print(f"True coincidence rate: {result['true_coincidence_rate']:.2f} Hz")
         """
+        validate_duration(duration)
+        validate_channel(singles_a_channel)
+        validate_channel(singles_b_channel)
+        validate_channel(coincidence_channel)
+
         self.clear_counts()
         time.sleep(duration)
         data = self.get_counts(human_readable=False)
+        ensure_no_channel_overflow(
+            data["overflow"],
+            singles_a_channel,
+            singles_b_channel,
+            coincidence_channel,
+        )
 
         singles_a = data["counts"][singles_a_channel]
         singles_b = data["counts"][singles_b_channel]
@@ -750,7 +813,13 @@ class CD48WithReconnect(CD48):
 
             self._handle_disconnect()
             if self.try_reconnect():
-                # Retry command after reconnection
+                # Count reads clear the hardware counters. Resending them
+                # would discard a second interval and report the wrong total.
+                if command_clears_counters(command):
+                    raise CD48ConnectionError(
+                        "Count read failed and was not retried after reconnect "
+                        "because it clears counters"
+                    ) from e
                 try:
                     return super()._send_command(command)
                 except (OSError, serial.SerialException) as retry_error:

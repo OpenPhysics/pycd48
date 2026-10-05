@@ -159,7 +159,7 @@ class SettingsConfig(BaseModel):
     model_config = ConfigDict(extra="allow")  # Allow extra fields
 
     trigger_level: float | None = None
-    impedance: Literal["50ohm", "1Mohm"] | None = None
+    impedance: Literal["50ohm", "1Mohm", "highz"] | None = None
     channels: dict[str, ChannelConfig] | None = None
 
 

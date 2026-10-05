@@ -24,6 +24,7 @@ from pycd48 import (
     CD48ResponseError,
     CD48WithReconnect,
 )
+from tests.mock_serial import arm_line_reader
 
 
 class TestCD48FromConfig(unittest.TestCase):
@@ -34,6 +35,7 @@ class TestCD48FromConfig(unittest.TestCase):
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
         self.mock_serial.is_open = True
+        arm_line_reader(self.mock_serial)
 
     def _create_config_file(self, config: dict[str, object], suffix: str = ".json") -> Path:
         """Create a temporary config file."""
@@ -209,6 +211,7 @@ class TestCD48Reconnect(unittest.TestCase):
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
         self.mock_serial.is_open = True
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_reconnect_success(self, mock_serial_class: MagicMock) -> None:
@@ -288,6 +291,7 @@ class TestCD48WithReconnect(unittest.TestCase):
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
         self.mock_serial.is_open = True
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_auto_reconnect_on_failure(self, mock_serial_class: MagicMock) -> None:
@@ -318,10 +322,34 @@ class TestCD48WithReconnect(unittest.TestCase):
                 on_reconnect=on_reconnect,
             )
 
-            # This should trigger reconnection
-            cd48._send_command("C")
+            # Non-destructive commands are retried after the port comes back.
+            cd48._send_command("v")
 
             self.assertTrue(reconnect_called)
+            self.assertEqual(self.mock_serial.write.call_count, 2)
+
+    @patch("serial.Serial")
+    def test_count_read_is_not_retried(self, mock_serial_class: MagicMock) -> None:
+        """A failed count read must not be sent again after reconnect."""
+        mock_serial_class.return_value = self.mock_serial
+
+        call_count = 0
+
+        def failing_then_success(*args: object) -> bytes:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise serial.SerialException("Connection lost")
+            return b"OK\r\n"
+
+        self.mock_serial.write.side_effect = failing_then_success
+
+        with patch("time.sleep"):
+            cd48 = CD48WithReconnect(port="/dev/ttyUSB0", init_delay=0)
+            with self.assertRaises(CD48ConnectionError):
+                cd48._send_command("C")
+
+        self.assertEqual(self.mock_serial.write.call_count, 1)
 
     @patch("serial.Serial")
     def test_disconnect_callback(self, mock_serial_class: MagicMock) -> None:
@@ -438,6 +466,8 @@ class TestCD48StrictMode(unittest.TestCase):
         """Set up test fixtures."""
         self.mock_serial: Mock = Mock(spec=serial.Serial)
         self.mock_serial.is_open = True
+        self.mock_serial.read_all = Mock(return_value=b"OK\r\n")
+        arm_line_reader(self.mock_serial)
 
     @patch("serial.Serial")
     def test_strict_mode_disabled_by_default(self, mock_serial_class: MagicMock) -> None:
