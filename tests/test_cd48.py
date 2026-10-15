@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, Mock, patch
 import serial
 
 from pycd48 import CD48, CD48DeviceNotFoundError, CD48Error, CD48ParseError
-
 from tests.mock_serial import arm_line_reader
 
 
